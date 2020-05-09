@@ -1,0 +1,954 @@
+Proceedings of the Twenty-Sixth AAAI Conference on Artificial Intelligence
+
+Querying Linked Ontological Data Through Distributed Summarization ∗
+Achille Fokoue
+
+Felipe Meneguzzi
+
+Murat Sensoy, Jeff Z. Pan †
+
+IBM Watson Research Center, USA
+achille@us.ibm.com
+
+Carnegie Mellon University, USA
+meneguzzi@cmu.edu
+
+University of Aberdeen, UK
+m.sensoy,jeff.z.pan@abdn.ac.uk
+
+Abstract
+
+evant for a given query. Furthermore, querying a semantic
+data network may amount to querying each relevant source
+for partial answers and joining the partial answers over the
+network. Hartig et al. proposed to leverage the correspondence between source addresses and identifiers used in the
+queries (Hartig, Bizer, and Freytag 2009). Konrath et al.
+used extracted schemas for source selection (Konrath, Gottron, and Scherp 2011). Harth et al. proposed a data summarization approach for querying Linked Data (Harth et al.
+2010), without considering reasoning.
+In this paper, we investigate the use of distributed summarization so as to enable scalable reasoning for querying
+linked ontological data. Prior work (Fokoue et al. 2006) has
+shown that practical scalable query answering and reasoning
+can be achieved on large local knowledge bases through the
+construction of a local summary A 0 of an ABox A (the data
+part of an ontology). The summary A 0 captures the patterns
+of relationships between individuals in A . However, efficient
+aggregation of local summaries into a global summary remains as a significant challenge in distributed settings.
+Our key contributions in this paper are threefold. First,
+we propose an alternative summarization technique which
+can be efficiently built in a decentralized fashion. By exploiting the principles of Linked Data, each source summarizes its data as another RDF graph, which is significantly smaller in size and hides details of the actual data
+by containing only the patterns repeating in the data. Relevant (w.r.t. input queries) sections of these summaries are
+merged and analyzed at query evaluation time. Second, we
+show how the analysis of these summaries enables more efficient source selection, query pruning and transformation of
+expensive distributed joins into local joins. Finally, through
+experiments over real and synthetic data, we show that our
+approach provides significant performance gains over stateof-the-art federated query engines for distributed semantic
+data.
+
+As the semantic web expands, ontological data becomes distributed over a large network of data sources on the Web.
+Consequently, evaluating queries that aim to tap into this distributed semantic database necessitates the ability to consult
+multiple data sources efficiently. In this paper, we propose
+methods and heuristics to efficiently query distributed ontological data based on a series of properties of summarized
+data. In our approach, each source summarizes its data as another RDF graph, and relevant section of these summaries are
+merged and analyzed at query evaluation time. We show how
+the analysis of these summaries enables more efficient source
+selection, query pruning and transformation of expensive distributed joins into local joins.
+
+Introduction
+Linked Data is extending the Web into a global space of RDF
+data, with more than 30 billion RDF statements being online,
+contributed not only by government entities (e.g., data.gov)
+and scientific communities (e.g., the Bio-medical community), but also by companies (e.g., BestBuy) and community driven efforts (e.g., DBpedia). Ontological vocabulary
+is used to annotate RDF data; such vocabulary can be defined in an ontology using the OWL Web Ontology Language. The use of ontological vocabulary necessitates the
+use of reasoning.
+Query processing over distributed and large numbers of
+data sources becomes one of the key challenges for the semantic web. Even without reasoning, this is a challenging
+task. Querying all sources in the network would be inefficient because only a small number of sources might be rel∗ Research was sponsored by the U.S. Army Research Laboratory and the U.K. Ministry of Defence and was accomplished under Agreement Number W911NF-06-3-0001. The views and conclusions contained in this document are those of the author(s) and
+should not be interpreted as representing the official policies, either expressed or implied, of the U.S. Army Research Laboratory,
+the U.S. Government, the U.K. Ministry of Defence or the U.K.
+Government. The U.S. and U.K. Governments are authorised to reproduce and distribute reprints for Government purposes notwithstanding any copyright notation hereon.
+† Jeff Z. Pan’s time is also partially funded by the EU K-Drive
+project
+Copyright c 2012, Association for the Advancement of Artificial
+Intelligence (www.aaai.org). All rights reserved.
+
+Preliminaries
+In the rest of the paper, we use the term ontology and knowledge base interchangeably. Description Logics (DLs) are the
+formal underpinning of the OWL standard. Due to limited
+space, we refer the reader to (Baader et al. 2002) for details
+of DLs.
+
+31
+
+Conjunctive Query
+Let NI be a set of individuals, NR a set of roles, and NC a set
+of concepts in knowledge base (i.e., ontology) K = (A , T ),
+where A is the ABox and T is the TBox (schema part
+of K ). Let NV be set of variables. We assume that these
+
+(b) adding relations between n and other summary individuals to satisfy (2) and (3). In practice, such summary ABox
+A 0 is dramatically smaller than the original ABox A . It can
+be constructed efficiently from A using conventional relational database queries. It only needs to be computed once,
+persisted, and then reused in subsequent queries. It is easily
+updated incrementally and is thus resilient to changes in A .
+Unfortunately, this simple summarization technique is impractical in a decentralized setting since it requires complete
+explicit information for each individual.
+
+four sets are mutually disjoint. A conjunctive query q is of
+the form (x1 , ..., xn ) ← t1 ∧ ... ∧ tm where, for 1 ≤ i ≤ n,
+xi ∈ NV and, for 1 ≤ j ≤ m, t j is a query term. A query
+term t is of the form C(x) or R(x, y) where x and y are either variables in NV or individuals in NI , C is an atomic
+concept and R is an atomic role. We consider the evaluation of a conjunctive query w.r.t. a DL-LiteR T using the
+standard first order semantics presented in (Calvanese et
+al. 2007). A construct conjunctive query q is of the form
+construct[c1 , ..., cn ] ← t1 ∧ ... ∧ tm ∧ filter(α1 ) ∧ ... ∧ filter(α p )
+where, ci and ti have the same form as terms in a conjunctive
+query and αi is a boolean expression. Furthermore, variables
+in ci are restricted to those appearing in ti or αi . Construct
+conjunctive queries are evaluated only w.r.t an empty T . The
+semantics is similar to SPARQL construct1 query semantics;
+that is, the evaluation of q builds the A obtained by instantiating patterns ci for each variable binding that satisfies all
+the constraints t1 ∧ ... ∧ tm ∧ α1 ∧ ... ∧ α p .
+
+Distributed Summary
+In a decentralized setting, an abox A is spread to n sources s1
+to sn , with ASi denoting the portion of the abox A located in
+si , and A = 1≤i≤n Ai . Conceptually, the construction of the
+global summary ABox A 0 of a distributed ABox A consists
+of two steps: (a) construction of local summaries and (b) the
+merge of the local summaries. In what follows, we assume
+the existence of a global hash function h which maps an individual a in a source si to its hash value h(a), as well as an
+owner function Ow that maps a hash value hv computed by
+h to a source si considered as the unique ‘owner’ of individuals whose hash value is hv. Specific implementations of h
+and Ow are defined on Page 4.
+
+Centralized Summary ABox
+
+Constructing Local Summaries At each source si , a local
+summary ABox A 0 i of Ai is built by mapping individuals
+with the same concept set CS in Ai and the same hash value
+hv to the same local summary node n in A 0 i whose concept
+set L (n) = CS and hash value h(n) = hv (if such a node n
+does not exist in A 0 i , a new node n is first created in A 0 i with
+L (n) = CS and hash value h(n) = hv). As in the traditional
+summary construction described in the previous section, n is
+then related to other summary nodes in A 0 i to preserve role,
+equality and different-from assertions (i.e., satisfy properties
+(2) and (3) of a summary ABox). Let fi denote the summary
+function of the summary ABox A 0 i .
+
+Prior work (Fokoue et al. 2006) has demonstrated that practical scalable query answering and reasoning -even in very expressive description logics- can be achieved on large knowledge bases through the construction of a summary ABox
+A 0 corresponding to the ABox A . Intuitively, an individual in A 0 represents a set of individuals in A which have
+some common semantically relevant properties (e.g., they
+are members of the same explicit concepts). Formally, an
+ABox A 0 is a summary ABox of ABox A if there is a mapping function f that satisfies the following constraints:
+(1) if C(a) ∈ A then C(f(a)) ∈ A 0
+(2) if R(a, b) ∈ A then R(f(a), f(b)) ∈ A 0
+
+2
+
+Merging Local Summaries The main challenge of the
+merger phase is illustrated by a simple example: if an individual a is present in the ABox A1 of source s1 , where it is
+mapped to the node n1 in the local summary A 0 1 , and in the
+ABox A2 of the source s2 , where it is mapped to the node
+n2 in A 0 2 , the merger phase must ensure that, in the final
+merged summary, a is mapped to a single summary node
+which has the same role, concept, equality and differentfrom assertions as both n1 and n2 . To achieve this goal, we
+rely on the hash function h to identify summary nodes in
+different local summaries whose set of corresponding ABox
+individuals might overlap (e.g.,, n1 and n2 in the previous
+example, which, by construction of local summaries, will
+have the same hash value). Moreover, we use the Ow function to ensure a unique representative of each ABox individual in the final merged summary. Although an individual
+a may be mentioned in various sources, the intuition is that
+its most authoritative description is provided by the source
+which owns it (i.e., Ow(h(a)). The distributed global summary ABox A 0 is built from the local summaries according
+to Algorithm 1. This algorithm takes as a parameter the set of
+
+˙ f(b) ∈ A 0
+(3) if a=
+6 ˙ b ∈ A then f(a)6=
+
+For a subset S of a summary ABox A 0 , we define the
+preimage of S , denoted f−1 [S ], as the following subset of
+A : f−1 [S ] = {R(a, b)|R(m, n) ∈ S ∧ m = f(a) ∧ n = f(b)}
+˙ b|m6=
+˙n ∈ S ∧m =
+∪ {C(a)|C(m) ∈ S ∧ m = f(a)} ∪ {a6=
+f(a) ∧ n = f(b)}.
+If the summary ABox A 0 obtained by applying the mapping function f to A is consistent w.r.t. a TBox T , then A
+is consistent w.r.t. T . However, the converse does not hold.
+(Dolby et al. 2007) introduced a refinement method to deal
+with an inconsistent summary.
+Let L be a mapping from each individual in A to a set of
+concepts, such that C(a) ∈ A iff C ∈ L (a). We call L (a) the
+concept set of a. In a centralized setting, a summary ABox
+that satisfies properties (1)-(3) can be effeciently built by (a)
+mapping individuals with the same concept set CS to the
+same summary individual n whose concept set is CS and
+1 http://www.w3.org/TR/rdf-sparql-query/#construct
+2 This
+
+also applies to the equality relation (=)
+
+32
+
+Algorithm 1 Building the global summary.
+
+We assume that all the local summaries have been pulled
+in a central location. For a conjunctive query q, the filtering is done by relaxing q to account for the fact that joins
+in q are not necessarily local to each local summary. For
+instance, the query q(x) ← R(x, y) ∧ S(x, a) ∧C(x) (where R
+and S are roles, C is a concept, a is an individual, and x and y
+are variables) is transformed into the relaxed construct query
+[q]r :
+
+1: procedure BUILD G LOBAL S UMMARY(S)
+2:
+N ← 0/
+3:
+for all si ∈ S do
+4:
+A 0 i ← BUILD L OCAL S UMMARY(si )
+5:
+for all n ∈ A 0 i |Ow(h(n)) 6= si do
+6:
+sow ← A 0 ow |sow = Ow(h(n))
+7:
+N ← N ∪ hn, si , sow i
+8:
+end for
+9:
+end for
+10:
+for all hn, si , sow i ∈ N do
+11:
+M ← {m|m ∈ A 0 ow ∧ h(n) = h(m)}
+12:
+for all (α ∈ A 0 i |n appears in α) ∧ m ∈ M do
+13:
+A 0 i ← (A 0 i /{α}) ∪ {α[n → m]}
+α[n → m] is the assertion obtained after
+replacing n by m in α
+14:
+end for
+15:
+end forS
+16:
+return 1≤i≤n A 0 i
+17: end procedure
+
+construct[R(x1 , y1 ) , S(x2 , vala1 ) ,C(x3 )] ←
+
+R(x1 , y1 ) ∧ S(x2 , vala1 ) ∧C(x3 )∧
+hr(x1 , hvx ) ∧ hr(x2 , hvx ) ∧ hr(x3 , hvx ) ∧ hr(vala1 , h(a))∧
+src(x1 , sx1 ) ∧ src(x2 , sx2 ) ∧ src(x3 , sx3 ) ∧ src(y1 , sy1 )∧
+6 sx3 ∨ x2 = x3 )∧
+filter(sx1 =
+6 sx2 ∨ x1 = x2 ) ∧ filter(sx2 =
+filter(sx1 6= sx3 ∨ x1 = x3 )
+
+Evaluating [q]r on the union of local summaries retrieves
+only relevant statements from each local summary. We make
+three important observations about [q]r in this example.
+First, each join variable x in q (i.e., a variable that occurs
+at least twice in the body of the query) is replaced by new
+variables xi for each occurrence of x. Second, these new variables xi must have the same hash value hvx to allow joins
+across local summaries as long as the summary nodes share
+the same hash value (as they potentially represent the same
+ABox individual). These constraints appear in the second
+line of the body of the query. hr in hr(x1 , hvx ) corresponds
+to a role that indicates the hash value of an individual. However, if xi and x j come from the same source, then they must
+also be identical since an individual in a local ABox cannot
+be mapped to two distinct nodes in the local summary. This
+constraint is enforced by the boolean filter tests in [q]r (src
+is a role that indicates the source of a node). Finally, each
+occurrence of a constant (e.g., a) is replaced by a new variable (e.g., vala1 ), referred to as a constant variable. This new
+variable is then constrained to have the same hash value as
+the constant (e.g., hr(vala1 , h(a))).
+Formally, the relaxation operator [.]r is defined inductively as follows (we use the auxillary function con to specify constraints on the hash value of nodes bound to variables
+in [q]r ):
+
+individual sources S, and assumes a function that builds local summaries according to the previous section. Informally,
+the distributed summary ABox A 0 is built from retrieved
+local summaries A 0 i by replacing, in each A 0 i , a ‘foreign’
+summary node n (i.e., a node such that Ow(h(n)) 6= si ) by
+all summary nodes m in the local summary of the source
+Ow(h(n)) having the same hash value as n (i.e., m is a node
+in the local summary of Ow(h(n)) and h(n) = h(m) 3 ).
+Distributed Summary Function For a source si , let A 00 i
+denote the summary obtained after replacing all “foreign”
+nodes in the local summary retrieved from si (i.e., A 00 i is
+the value of A 0 i at line 16 in Algorithm 1). The summary
+function f of A 0 maps an individual a in A to a node n in
+A 00 i such that a is owned by source si (i.e., si = Ow(h(a)))
+and h(n) = h(a) (by construction, at least one such n exists. In case of multiple n, if a is in Ai , then fi (a) is chosen;
+otherwise, any such n can be chosen). In practice, f is not
+computed as it is not needed for any optimization technique
+described in the paper. It can easily be shown that this summarization scheme satisfies the three fundamental properties
+of a summary ABox.
+
+• For the kth occurrence of a variable x, denoted xk (hereafter referred to as an occurrence-annotated variable):
+[xk ]r = xk and con(xk ) = {hr(xk , hvx )}. hvx is a variable
+whose values represent the hash values of summary nodes
+bound to the variable x.
+
+Summary Filtering
+For a given query or reasoning task, only a small fraction of
+the distributed summary is typically relevant. As a result, in
+practice, we never perform the merger step of the distributed
+summarization directly on the local summaries, but rather
+on their relevant subsets. In the remainder of this section, we
+consider filtering w.r.t. conjunctive query answering with a
+shared aligned DL-LiteR TBox. Since conjunctive query answering w.r.t. a DL-LiteR TBox can be reduced to answering a union of conjunctive queries w.r.t. an empty TBox, we
+present only summary filering w.r.t. a conjunctive query and
+an empty TBox.
+
+• For the kth occurrence of a constant a, denoted ak [ak ]r =
+valak and con(ak ) = {hr([ak ]r , h(a))}. valak is a variable,
+called constant variable, representing the kth occurrence
+of a.
+• For a term t of the form R(v, w) where R is a role, v and
+w are occurrence-annotated variables or constants, we define auxillary functions: [t]br to represent its contribution
+to the body clause of the final query, and [t]cr for its contribution to the construct clause:
+– [R(v, w)]br = {R([v]r , [w]r )} ∪ con(v) ∪ con(w) ∪
+{src([v]r , s[v]r ), src([w]r , s[w]r )}
+
+3 if
+
+no such m exists in Ow(h(n)), a new one is created with
+h(m) set to h(n)
+
+33
+
+– [R(v, w)]cr
+=
+[R(v, w)]br
+∪
+{var([v]r , “[v]r ”), var([w]r , “[w]r ”) }. src is a role
+that indicates the source of a summary node. It is specified for each summary node at summary construction.
+s[v]r (e.g., sx1 ) is a new variable for the source of the
+summary node bound to the new variable [v]r (e.g.,
+x1 ). Finally, var is a role in the filtered summary that
+indicates the occurrence-annotated or constant variable
+to which each filtered summary node is bound. It plays
+a key role in the subsequent analysis of the filtered
+summary (see page 5).
+
+In practice, for performance reasons and since access
+to some remote local summaries may be restricted to a
+SPARQL end point, before issuing the query [q]r against
+S
+0
+1≤i≤n A i , we start by retrieving, for each term t in q, the
+relevant portion of each local summary A 0 i . This is achieved
+by evaluating [() ← t 0 ]r against A 0 i , where t 0 is the term obtained after replacing variables occurring in t by their corresponding occurrence-annotated variable.
+
+A Meaningful Global Hash for Linked Data
+The global hash function h and the owner function Ow play
+a key role in the distributed summary. We first briefly describe some important desiderata on h and Ow. The number of buckets created by the hashing obviously controls the
+trade-off between precision of the global distributed summary and its size. However, the decision on the number of
+buckets should not be made upfront and at a global level
+(Desideratum-1). Instead, this decision should be made,
+without coordination, by local sources as they build their
+local summary. For example, one source with a large and
+very complex data set might require a more aggressive hashing (fewer buckets), while another source might choose a
+less aggressive hashing because it still produces a relatively
+small summary of its ABox. On the other hand, a normalization mechanism is needed when merging the relevant sections of the local summaries to compensate for the
+difference in “aggressiveness” of hashing between sources
+(Desideratum-2). Finally, the owner function Ow should be
+able to interpret hash value of an individual a to identify the
+source which is more likely to have the most authoritative
+information about a (Desideratum-3).
+If the identifiers of individuals and the distribution of
+data in the network of sources are completely random, it
+is unclear how such h and Ow can be designed to satisfy
+the previous three desirata. Fortunately, this is not how the
+Linked Open Data is organized. The first three of its four
+principles outlined by Tim Berners-Lee4 can be exploited
+to design h and Ow: “(i) Use URIs to identify things; (ii)
+Use HTTP URIs so that these things can be referred to and
+looked up by people and user agents; (iii) Provide useful
+information about the thing when its URI is dereferenced”.
+These principles clearly entail a notion of ownership of each
+individual; namely, the domain (or host name) of the HTTP
+URI of the individual is its owner. A HTTP URI has syntax
+http://P0 /. . ./Pn /name where P0 is domain, {P1 , . . . , Pn } are
+path elements, and name is local name. We can leverage URI
+syntax to create desirable h and Ow functions. Function h
+can be defined by removing some elements of URIs. That
+is, given the level of abstraction l, h(http://P0 /. . ./Pn /name) =
+http://P0 /. . ./Px , where x = max(n − l, 0). Here, the hash
+value of a URI serves as a bucket of URIs with common
+domain and path elements. The size of the bucket increases
+and hashing becomes more aggressive as l increases.
+For instance, h(http://dbpedia.org/resource/Bill Clinton) is
+http://dbpedia.org/resource when l = 0, but it becomes
+http://dbpedia.org when l = 1. Similarly, following
+
+• For a term t of the form C(v), it is handled in a similar
+fashion as the previous case (i.e., R(u, v)).
+• Finally, for a conjunctive query q of the form x1 , ..., xn
+← t1 ∧ ... ∧tm , the relaxed query [q]r used to construct the
+filtered local summaries is :
+construct[ c1 . ... c p . ] ← b1 ∧ ... ∧ bq ∧ f l1 ∧ ... ∧ f lr
+
+where ci ∈ 1≤ j≤m [t 0j ]cr , bi ∈ 1≤ j≤m [t 0j ]br (t 0j is the term
+obtained after replacing variables occurring in ti by
+their corresponding
+occurrence-annotated variable), and
+S
+f li ∈ x∈joinVar(q) {filter(sx j =
+6 sxk ∨ x j = xk )|1 ≤ j < k ≤
+S
+occ(x, q)} or f li ∈ c∈joinConst(q) {filter(svalc j 6= svalc ∨
+k
+valc j = valck )|1 ≤ j < k ≤ occ(c, q)} (joinVar(q) is the set
+of join variables in q, joinConst(q) is the set of constants
+appearing at least twice in q, and occ(u, q) is the number
+of occurrence of u in the body of q) .
+S
+
+S
+
+The correctness of filtering relies on the following Theorem
+whose proof is provided in (Fokoue et al. 2012):
+Theorem 1 Let A 0 i be the local summary of a local ABox Ai
+located at source si with summary function fi , for 1 ≤ i ≤ n
+and n > 0. For a conjunctive query q, let filter(A 0 i , q) denote
+0
+the largest
+S subset0 of A i contained in the result of evaluating
+[q]r on 1≤i≤n A i . Then, the evaluation ofSq w.r.t. an empty
+TBox produces the same results on A = 1≤i≤n Ai and on
+S
+−1
+0
+1≤i≤n fi [filter(A i , q)]
+Furthermore, if q is minimal w.r.t. the number of its terms
+(i.e., if a conjunctive query q0 is equivalent to q w.r.t. the
+empty TBox, then either q0 has more terms than q or there
+are syntactically identical after variable renaming and term
+reordering), then the filtering performed by evaluating [q]r is
+optimal. This is formalized by the Theorem 2 whose proof
+is in (Fokoue et al. 2012).
+Notation 1 For a summary ABox S , S denotes the subset
+of S obtained after removing relations involving metadata
+roles (i.e., src, hr, var).
+Theorem 2 Let A 0 i be the local summary ABox located at
+source si , for 1 ≤ i ≤ n and n > 0. Let S 0 be a strict subS
+set of 1≤i≤n filter(A 0 i , q). If q is minimal w.r.t. the number
+of its terms, then there exists n ABoxes Si (1 ≤ i ≤ n) such
+that (1) A 0 i is a valid summary ABox for Si with summary
+function gi and (2) the evaluation S
+of q w.r.t. an empty TBox
+−1 0
+0
+returns
+S different set of results on 1≤i≤n gi [S ∩ A i ] and
+on 1≤i≤n Si
+
+4 http://www.w3.org/DesignIssues/LinkedData
+
+34
+
+Exclusive Source-Based Technique Given a conjunctive
+query q and a join variable x appearing in n terms of q (n > 1)
+such that m (1 < m ≤ n) of these terms have the same unique
+source s, an expensive distributed join can be avoided by
+performing the m join locally on the source s. This simple
+technique works fairly well as discussed in (Schwarte et al.
+2011) when the sources use different vocabularies or ontologies. However, it is less effective when they have the same
+ontology and most subjects and objects in terms of q are
+variables. In such situations, as illustrated on the UOBM 30
+dataset in the experimental evaluation, almost all sources are
+selected.
+
+Linked Open Data principles, Ow can be defined as
+Ow(http://P0 /. . ./Px )= P0 .
+To hash URIs in a specific domain, two different sources
+si and s j may select different l values, such as li and
+l j . This means that the same URI will be represented by
+different hash values in their local summaries. Therefore,
+in the meta-data of each local summary, sources state l
+values they used for each domain. While aggregating local summaries, hash values are normalised easily by taking the maximum level of abstraction. For instance, if
+li = 0 and l j = 1 for dbpedia.org domain, then normalized
+value for h(http://dbpedia.org/resource/Bill Clinton) would be
+http://dbpedia.org in the global summary.
+
+Variable Locality-Based Technique In distributed settings where a common vocabulary or ontology is shared
+by many sources, some roles exhibit a local behavior;
+that is, in each source s, they are only involved in statements where the subject a (or the object a) is an individual owned by s (i.e., Ow(h(a)) = s)). For example, in
+the distributed data network of a multinational coorporation where each data source contains information for each
+country, the role “salary” and “position” would appear in
+each source. However, in each source s, the subject of a
+statement with such a role is always an employee (e.g.,
+htt p : //xyz.com/France/HR/Jean Dupond) working in
+the country corresponding to s . Therefore, the conjunctive query q = (x , p , s ) ← salary( x, s)∧ position( x, p)∧s >
+200K can more efficiently be evaluated by computing it locally at each source and returning the union of the local results - thus avoiding an expensive distributed join.
+Annotations in the filtered summary allow us to detect
+this locality. Let x be a join variable which appears in n
+(n > 1) terms of a query q. For a subset S = {t1 , ...,tm } (with
+1 < m ≤ n), x can be identified as local for the join (t1 , ..., tm )
+if all filtered summary nodes with the same hash value bound
+to any occurrence of x in a ti come from the same source.
+Formally, for 1 ≤ i ≤ m, if terms ti satisfy the following property (Var-Locality), then the join on x for the all the terms ti
+(1 ≤ i ≤ m) can safely be performed locally in each source:
+(Var-Locality) If two distinct nodes α and β in the filtered
+summary are such that var(α, “xi ”), var(β, “x j ”), hr(α, hv)
+and hr(β, hv) are statements in the filtered summary (where
+xi and x j are any occurrence-annotated variables corresponding to occurrences of x in {t1 , ...,tm }, and hv denotes the
+common hash value of α and β), then α and β must come
+from the same source (i.e., src(α, sc) and var(β, sc) must be
+in the filtered summary, where sc is the value of the common
+source).
+
+Summary-based Optimizations
+The filtered and annotated (with src, hr, var) local summaries enable three important types of optimizations: query
+pruning, efficient source selection, and transformation of
+distributed joins into local joins (even when multiple sources
+are selected).
+
+Query Pruning
+For a conjunctive query q, if the evaluation of [q]r on the
+local summaries A 0 i of Ai (1 ≤ i ≤ n) results in an empty
+summary, then, by Theorem
+1, the evaluation of q w.r.t. the
+S
+empty Tbox on A = 1≤i≤n Ai is guaranteed to also return
+an empty result set. Query pruning is particularly important
+for conjunctive queries evaluated w.r.t. to a DL-LiteR Tbox
+because, as shown in the experimental evaluation, many
+generated conjunctive queries can be discarded - including
+queries that cannot be pruned based only on the unsatisfiability of one of their terms. Furthermore, the optimality of the
+filtering (see Theorem 2) makes our approach more likely to
+detect queries with empty result set.
+
+Source Selection
+Source selection consists in assigning to each term t in a
+query q, the set of sources, denoted srcsel(t), that need to
+be contacted in order to answer t. Assuming that t is of the
+form R(v, w) (C(v) is treated in a similar fashion), by definition of [.]r , [v]r is always a variable x (of the form valv if
+v is a constant; otherwise, it is of the form xk ). In our approach, source selection is performed by simply evaluating
+the following conjunctive query on the filtered summary:
+(s) ← var(u, “x”) ∧ src(u, s)
+This query selects the sources of all the filtered summary
+nodes which have a variable annotation (var) to the variable
+x (x = [v]r ). The correctness of our source selection stems
+from the fact that the construct query used to build the filtered summary adds the triple var(n, “x”) for all constructed
+nodes n bound to x.
+
+Experimental Evaluation
+To evaluate the effectiveness of our approach, we developed two experiments to assess the efficiency gains over existing state-of-the-art distributed query answering engines,
+such as Alibaba and FedX (Schwarte et al. 2011), using our
+summary-based optimizations. 5
+The first set of experiments consists of a subset of the
+FedBench (Schmidt et al. 2011) benchmark and aims to
+
+Distributed Join Elimination
+We now present two techniques to transform distributed
+joins into local joins. The first technique is applicable to any
+system with some source selection capability, whereas the
+second is unique to our approach.
+
+5 See (Schmidt et al. 2011; Dolby et al. 2007) for additional information on the datasets used.
+
+35
+
+Table 1: Number of assertions in summary and number of
+sources by domain — ‡ indicates small-sized sources.
+Domain
+Summary Size
+Number of Sources
+Summary Size
+Source Data Size
+
+L IFE S CI
+33506
+4
+
+O PEN D OM
+60041
+6+30‡
+
+UOBM5
+97956
+5
+
+UOBM30
+702206
+30
+
+0.063 %
+
+0.037%
+
+8.8%
+
+9.2 %
+
+Table 2: Querying Times (sec) — † did not fully complete.
+
+compare our approach to the FedX and Alibaba. FedBench
+benchmarks consist of sets of queries issued to a variety
+of collections of data sources, with queries spanning multiple individual sources to require a federated query answering mechanism. For example, the “Cross Domain” collection of datasets includes DBpedia (Bizer et al. 2009), the
+New York Times ontology, LinkedMDB (Consens 2008),
+Jamendo, Geonames and the SW Dog ontology (an ontology describing academic conferences). In our experiments,
+we use only the conjunctive queries from FedBench for both
+the “Life Sciences” dataset (L IFE S CI), as well as a modified version of the Cross Domain dataset called “Open Domain” (O PEN D OM). Within O PEN D OM the SW Dog ontology’s ABox is broken down into multiple sources, one for
+each individual conference, resulting in 36 different sources
+rather than the six sources from FedBench. Moreover, the
+set of queries for O PEN D OM is divided into cross-domain
+and linked data (O PEN D OM -LD).
+The second set of experiments consists of a series of
+federated queries over the UOBM benchmark (Ma et al.
+2006).UOBM is an improvement over the popular LUBM
+(Guo, Pan, and Heflin 2005) adding the ability to scale the
+size of the benchmark almost indefinitely, but critically, it
+adds multiple links between universities. Since we use one
+data source per university, inter-university links lead to some
+federated queries requiring joins across data sources. In our
+benchmark, we have transformed the UOBM ontology into
+DL-LiteR expressivity, and generated two datasets with, respectively, five (UOBM5) and 30 universities (UOBM30).
+Using the DL-LiteR query compilation described in (Rosati
+and Almatelli 2010) 6 , the UOBM queries were translated
+into 483 conjunctive queries w.r.t an empty TBox (the compilation step also prunes out generated queries with concept
+or role not present in the sources).
+The federation engines were run on a laptop with a dualcore 2.4Ghz Intel CPU and 3GB of RAM (1GB maximum
+heap size for the Java Virtual Machine) running Windows
+XP. The federation engines connected to a remote HTTP
+Sesame RDF server with four 2.33GHz 64-bit Intel CPUs
+and 25 GB of RAM running Linux. The size ratio of summary to data sources varied significantly, depending on the
+number of similar concepts in each source, ranging from
+0.037% for O PEN D OM to 9.2% for UOBM30. The size of
+the summaries and the number of sources for each dataset is
+shown in Table 1.
+The results of these experiments are summarized in Table 2, which shows runtime statistics for each combination of dataset and federation engine (with and without our
+
+Engine
+
+Dataset
+
+Average
+
+St. Dev
+
+Range
+
+FedX
+FedX+SO
+
+UOBM5
+UOBM5
+
+8
+5
+
+11
+7
+
+0-180
+0-51
+
+Alibaba †
+Alibaba+SO
+
+UOBM30
+UOBM30
+
+days
+51
+
+142
+
+0-944
+
+FedX
+FedX+SO
+
+UOBM30
+UOBM30
+
+114
+25
+
+121
+57
+
+0-680
+0-603
+
+Alibaba †
+Alibaba+SO
+
+O PEN D OM
+O PEN D OM
+
+213
+76
+
+205
+73
+
+45-511
+19-187
+
+FedX
+FedX+SO
+
+O PEN D OM
+O PEN D OM
+
+27
+10
+
+15
+8
+
+9-45
+3-26
+
+Alibaba †
+Alibaba+SO
+
+O PEN D OM -LD
+O PEN D OM -LD
+
+521
+420
+
+352
+441
+
+38-941
+12-930
+
+FedX
+FedX+SO
+
+O PEN D OM -LD
+O PEN D OM -LD
+
+18
+15
+
+13
+13
+
+8-47
+0-45
+
+Alibaba
+Alibaba+SO
+
+L IFE S CI
+L IFE S CI
+
+1041
+577
+
+100
+367
+
+883-1125
+126-931
+
+FedX
+FedX+SO
+
+L IFE S CI
+L IFE S CI
+
+18
+19
+
+17
+23
+
+3-46
+4-59
+
+Table
+3:
+Summarization
+Filtering and Analysis Time
+( Summary
+)
+Total Query Evaluation Time
+
+overhead
+
+Engine
+
+Dataset
+
+Average
+
+St. Dev
+
+Range
+
+FedX+SO
+FedX+SO
+
+UOBM5
+UOBM30
+
+.64
+.54
+
+0.31
+.36
+
+0.02-1
+.01-1
+
+FedX+SO
+
+O PEN D OM
+
+0.41
+
+0.34
+
+0-.74
+
+FedX+SO
+
+O PEN D OM -LD
+
+0
+
+0
+
+0-0
+
+FedX+SO
+
+L IFE S CI
+
+0.01
+
+0
+
+0-0.01
+
+Alibaba+SO
+
+UOBM30
+
+.29
+
+.3
+
+0-1
+
+Alibaba+SO
+
+O PEN D OM
+
+.1
+
+.13
+
+0-.35
+
+Alibaba+SO
+
+O PEN D OM -LD
+
+0.05
+
+0.16
+
+0-.5
+
+Alibaba+SO
+
+L IFE S CI
+
+0
+
+0
+
+0-0
+
+ratio
+
+summary-based optimizations (SO) ). The summarization
+overhead ratio, which is expressed as time to perform summary filtering and analysis divided by the total evaluation
+time, is presented in Table 3. The results show that the cost
+of analyzing the summary is amortized by the gains obtained
+from more efficient query plans in all datasets and engines,
+except for FedX on L IFE S CI, which has the smallest number of sources. Moreover, the improvements for UOBM are
+much more dramatic as the number of sources increases due
+to our unique “variable locality-based technique” to eliminate expensive distributed joins, a more efficient source selection and query pruning (13% of the queries are pruned
+without contacting any source). For UOBM30, we observe
+a four times average speed gain on FedX (Alibaba without
+our optimizations on UOBM30 did not complete after 2.5
+days).
+
+Conclusions
+In this paper, we developed a novel distributed summarization approach for efficiently querying Linked Open Data.
+Our approach exploits the main principles of Linked Data
+for indexing distributed data. We performed extensive experiments over real and synthetic data and show that our
+approach improves state-of-the-art query engines for distributed semantic data in DL-LiteR ontologies. In future
+work, we will extend our approach for more expressive ontology languages.
+
+6 This compilation technique produces a non recursive datalog
+which we translate into a set a conjunctive queries
+
+36
+
+References
+
+federated semantic data query processing. In Aroyo et al.
+(2011), 585–600.
+Schwarte, A.; Haase, P.; Hose, K.; Schenkel, R.; and
+Schmidt, M. 2011. Fedx: Optimization techniques for federated query processing on linked data. In Aroyo et al. (2011),
+601–616.
+
+Aroyo, L.; Welty, C.; Alani, H.; Taylor, J.; Bernstein, A.;
+Kagal, L.; Noy, N. F.; and Blomqvist, E., eds. 2011. The
+Semantic Web - ISWC 2011 - 10th International Semantic Web Conference, Bonn, Germany, October 23-27, 2011,
+Proceedings, Part I, volume 7031 of Lecture Notes in Computer Science. Springer.
+Baader, F.; McGuiness, D. L.; Nardi, D.; and PatelSchneider, P., eds. 2002. Description Logic Handbook:
+Theory, implementation and applications. Cambridge University Press.
+Bizer, C.; Lehmann, J.; Kobilarov, G.; Auer, S.; Becker, C.;
+Cyganiak, R.; and Hellmann, S. 2009. Dbpedia - a crystallization point for the web of data. Web Semant. 7:154–165.
+Calvanese, D.; Giacomo, G.; Lembo, D.; Lenzerini, M.; and
+Rosati, R. 2007. Tractable reasoning and efficient query
+answering in description logics: The dl-lite family. J. Autom.
+Reason. 39:385–429.
+Consens, M. P. 2008. Managing linked data on the web:
+The linkedmdb showcase. In Baeza-Yates, R. A.; Jr., W. M.;
+and Santos, L. A. O., eds., LA-WEB, 1–2. IEEE Computer
+Society.
+Dolby, J.; Fokoue, A.; Kalyanpur, A.; Kershenbaum, A.;
+Schonberg, E.; Srinivas, K.; and Ma, L. 2007. Scalable semantic retrieval through summarization and refinement. In
+Proceedings of the 22nd AAAI Conference on Artificial intelligence.
+Fokoue, A.; Kershenbaum, A.; Ma, L.; Schonberg, E.; and
+Srinivas, K. 2006. The summary abox: Cutting ontologies
+down to size. In Proceedings of the International Semantic
+Web Conference (ISWC), 343–356.
+Fokoue, A.; Meneguzzi, F.; Sensoy, M.; and Pan, J. Z. 2012.
+IBM Technical Report# RC25278: Querying Linked Ontological Data through Distributed Summarization.
+Guo, Y.; Pan, Z.; and Heflin, J. 2005. Lubm: A benchmark
+for owl knowledge base systems. Web Semant. 3:158–182.
+Harth, A.; Hose, K.; Karnstedt, M.; Polleres, A.; Sattler, K.U.; and Umbrich, J. 2010. Data summaries for on-demand
+queries over linked data. In Proceedings of the 19th international conference on World wide web, 411–420.
+Hartig, O.; Bizer, C.; and Freytag, J.-C. 2009. Executing
+sparql queries over the web of linked data. In Proceedings
+of the International Semantic Web Conference (ISWC), 293–
+309.
+Konrath, M.; Gottron, T.; and Scherp, A.
+2011.
+Schemexweb-scale indexed schema extraction. In Proceedings of the International Semantic Web Conference (ISWC)
+- Winner of the Billion Triple Challenge.
+Ma, L.; Yang, Y.; Qiu, Z.; Xie, G.; and Pan, Y. 2006. Towards a complete owl ontology benchmark. In Proc. of the
+third European Semantic Web Conf.(ESWC 2006), 124–139.
+Rosati, R., and Almatelli, A. 2010. Improving query answering over dl-lite ontologies. In KR.
+Schmidt, M.; Görlitz, O.; Haase, P.; Ladwig, G.; Schwarte,
+A.; and Tran, T. 2011. Fedbench: A benchmark suite for
+
+37
+
+

@@ -13,19 +13,19 @@ class FileParser(Target):
         super().__init__()
         self.data_directory = data_directory
 
-    def process(self, value):
-        assert type(value) == str, f"input to file parser has wrong type: {type(value)}"
-        assert value.endswith(".pdf") or value.endswith(".txt"), "invalid file path / type"
+    def process(self, document):
+        assert type(document) == str, f"input to file parser has wrong type: {type(document)}"
+        assert document.endswith(".pdf") or document.endswith(".txt"), "invalid file path / type"
 
-        document_name = self.get_document_name(value)
+        document_name = self.get_document_name(document)
         return {
             "name": document_name,
             "pdf_structure": self.get_pdf_structure(document_name),
             "text": self.get_text(document_name)
         }
 
-    def get_document_name(self, value):
-        file_name = value.split("/")[-1]
+    def get_document_name(self, document):
+        file_name = document.split("/")[-1]
         return file_name.replace(".pdf", "").replace(".txt", "")
 
     def get_pdf_structure(self, document_name):

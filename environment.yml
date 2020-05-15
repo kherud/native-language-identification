@@ -1,0 +1,12 @@
+name: prjak
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.6
+  - tqdm
+  - pandas
+  - spark_nlp
+  - requests
+  - pdfminer
+  - spacy

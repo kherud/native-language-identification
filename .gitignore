@@ -1,3 +1,4 @@
-.directory
+**/.directory
 .idea
 data
+**/__pycache__

@@ -4,15 +4,14 @@ from multiprocessing import Queue
 
 class Target(abc.ABC):
     def __init__(self):
-        self.namespace = None
+        pass
 
     @abc.abstractmethod
-    def process(self, value):
+    def process(self, document):
         pass
 
 
-def worker(target: Target, pipe_in, pipe_out, lock, namespace):
-    target.namespace = namespace
+def worker(target: Target, pipe_in, pipe_out, lock):
     while True:
         with lock:
             try:

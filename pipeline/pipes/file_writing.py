@@ -15,24 +15,24 @@ class CsvWriter(Target):
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)
 
-    def process(self, value):
-        assert type(value) == dict, f"input to file parser has wrong type: {type(value)}"
-        assert "name" in value, "document not yet parsed"
-        assert "entities" in value, "document not yet processed"
+    def process(self, document):
+        assert type(document) == dict, f"input to file parser has wrong type: {type(document)}"
+        assert "name" in document, "document not yet parsed"
+        assert "entities" in document, "document not yet processed"
 
         result = {
             "Text": [],
             "Label": [],
         }
 
-        for entity_name, entities in value["entities"].items():
+        for entity_name, entities in document["entities"].items():
             if entity_name in NER_LABEL_MAP:
                 entity_name = NER_LABEL_MAP[entity_name]
             for entity in entities:
                 result["Text"].append(entity)
                 result["Label"].append(entity_name)
 
-        file_path = os.path.join(self.output_path, value["name"] + ".csv")
+        file_path = os.path.join(self.output_path, document["name"] + ".csv")
 
         pd.DataFrame(result).to_csv(file_path, index=False)
 

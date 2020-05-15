@@ -4,6 +4,7 @@ from . import Target
 import spacy
 from collections import defaultdict
 
+
 RELEVANT_ENTITIES = ["PERSON", "ORG", "GPE", "NORP", "FAC"]
 
 
@@ -14,18 +15,18 @@ class EntityParser(Target):
         # self.ner_pipeline = PretrainedPipeline('recognize_entities_dl', 'en')
         self.ner_pipeline = spacy.load("en_core_web_md", disable=["tagger", "parser"])
 
-    def process(self, value):
-        assert isinstance(value, dict), f"wrong input of type {type(value)} to entity parser"
-        assert "text" in value, "no text in document"
+    def process(self, document):
+        assert isinstance(document, dict), f"wrong input of type {type(document)} to entity parser"
+        assert "text" in document, "no text in document"
 
-        if "entities" not in value:
-            value["entities"] = defaultdict(set)
+        if "entities" not in document:
+            document["entities"] = defaultdict(set)
 
-        result = self.ner_pipeline(value["text"].replace("\n", " "))
+        result = self.ner_pipeline(document["text"].replace("\n", " "))
 
         for entity in result.ents:
             if entity.label_ in RELEVANT_ENTITIES:
-                value["entities"][entity.label_].add(entity.text)
+                document["entities"][entity.label_].add(entity.text)
 
         # result = self.ner_pipeline.annotate(value["text"])
         #
@@ -40,4 +41,4 @@ class EntityParser(Target):
         #         entity.append(token)
         #     last_ner = ner
 
-        return value
+        return document

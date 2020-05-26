@@ -13,7 +13,7 @@ class FileParser(Target):
         super().__init__()
         self.data_directory = data_directory
 
-    def process(self, document):
+    def __call__(self, document):
         assert type(document) == str, f"input to file parser has wrong type: {type(document)}"
         assert document.endswith(".pdf") or document.endswith(".txt"), "invalid file path / type"
 

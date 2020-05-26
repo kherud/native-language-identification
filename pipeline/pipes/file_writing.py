@@ -15,7 +15,7 @@ class CsvWriter(Target):
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)
 
-    def process(self, document):
+    def __call__(self, document):
         assert type(document) == dict, f"input to file parser has wrong type: {type(document)}"
         assert "name" in document, "document not yet parsed"
         assert "entities" in document, "document not yet processed"

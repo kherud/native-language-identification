@@ -14,7 +14,7 @@ class ReferenceParser(Target):
         self.et_al_re = re.compile(rf"[{chars}]+\set\.?\s*al\.?\s+(?:[(\[][0-9]{{4}}[)\]])?")
         self.and_re = re.compile(rf"(?:[{chars}]+,?\s+(?:(?:and)|&)\s+)+[{chars}]+[,\s]*(?:[(\[][0-9]{{4}}[A-Za-z]?[)\]]|[0-9]{{4}}[A-Za-z]?)")
 
-    def process(self, document):
+    def __call__(self, document):
         assert isinstance(document, dict), f"wrong input of type {type(document)} to reference extractor"
         assert "text" in document, "no text in document"
 

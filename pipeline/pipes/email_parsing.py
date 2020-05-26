@@ -11,7 +11,7 @@ class EmailParser(Target):
         self.noise_re = re.compile(f"[^{string.printable}\x7f-\xffÀ-ž\u0370-\u03FF\u0400-\u04FF]")
         self.email_re = re.compile(r"[\w.-]+@[\w-]+\.[\w-]+")
 
-    def process(self, document):
+    def __call__(self, document):
         assert isinstance(document, dict), f"wrong input of type {type(document)} to email extractor"
         assert "text" in document, "no text in document"
 

@@ -15,7 +15,7 @@ class EntityParser(Target):
         # self.ner_pipeline = PretrainedPipeline('recognize_entities_dl', 'en')
         self.ner_pipeline = spacy.load("en_core_web_md", disable=["tagger", "parser"])
 
-    def process(self, document):
+    def __call__(self, document):
         assert isinstance(document, dict), f"wrong input of type {type(document)} to entity parser"
         assert "text" in document, "no text in document"
 

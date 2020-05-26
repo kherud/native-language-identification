@@ -1,5 +1,4 @@
 import abc
-from multiprocessing import Queue
 
 
 class Target(abc.ABC):
@@ -7,7 +6,7 @@ class Target(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def process(self, document):
+    def __call__(self, document):
         pass
 
 
@@ -21,7 +20,7 @@ def worker(target: Target, pipe_in, pipe_out, lock):
                     value = pipe_in.get()
             except EOFError:
                 break
-        result = target.process(value)
+        result = target(value)
         if pipe_out is not None:
             pipe_out.send(result)
 

@@ -50,7 +50,7 @@ def process_with_pool(data_directory: str, **kwargs):
                   for _ in range(n_processes)]
 
     n_documents = in_queue.qsize()
-    with tqdm.tqdm(total=n_documents, desc="Status: Loading Pipes...", unit="Documents") as progress_bar:
+    with tqdm.tqdm(total=n_documents, desc="Status: Loading Pipes", unit="Documents") as progress_bar:
         for process in processes:
             process.start()
 

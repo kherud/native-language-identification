@@ -1,14 +1,15 @@
 import os
-import abc
 import glob
 import tqdm
 from typing import List, Union
 from pipeline.pipes import worker, Target
-from pipeline.pipes.file_parsing import FileParser
-from pipeline.pipes.file_writing import CsvWriter
-from pipeline.pipes.email_parsing import EmailParser
-from pipeline.pipes.entity_parsing import EntityParser
-from pipeline.pipes.reference_parsing import ReferenceParser
+from pipeline.pipes.file import FileParser, CsvWriter
+from pipeline.pipes.email import EmailParser
+from pipeline.pipes.entity import EntityParser
+from pipeline.pipes.author import AuthorParser
+from pipeline.pipes.reference import ReferenceParser
+from pipeline.pipes.geolocation import LocationParser
+from pipeline.pipes.acknowledgement import AcknowledgementParser
 from multiprocessing import Process, Pipe, Lock, Manager, Queue, cpu_count
 from multiprocessing.connection import Connection
 
@@ -66,13 +67,15 @@ class PipelineSingleprocess:
         self.data_directory = data_directory
 
     @staticmethod
-    def factory(data_directory: str):
+    def factory(data_directory: str, ner_model: str = "models/ner"):
         return PipelineSingleprocess(
             pipeline=[
                 FileParser(data_directory),
+                AuthorParser(ner_model),
                 EmailParser(),
-                EntityParser(),
+                LocationParser(),
                 ReferenceParser(),
+                AcknowledgementParser(),
                 CsvWriter(data_directory),
             ],
             data_directory=data_directory

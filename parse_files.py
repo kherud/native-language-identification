@@ -15,5 +15,3 @@ data_directory = "data"
 process_with_pool(data_directory)
 
 # for x in
-
-

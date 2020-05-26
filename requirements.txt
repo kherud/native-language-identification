@@ -1,6 +1,6 @@
-tqdm==4.46.0
-pandas==1.0.3
-spark_nlp==2.5.0
-requests==2.23.0
-pdfminer==20191125
-spacy==2.2.4
+spacy
+tqdm
+pdfminer
+pandas
+numpy
+geotext

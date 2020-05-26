@@ -3,17 +3,91 @@ import abc
 import glob
 import tqdm
 from typing import List, Union
-from pipeline.pipes import worker
+from pipeline.pipes import worker, Target
 from pipeline.pipes.file_parsing import FileParser
 from pipeline.pipes.file_writing import CsvWriter
 from pipeline.pipes.email_parsing import EmailParser
 from pipeline.pipes.entity_parsing import EntityParser
 from pipeline.pipes.reference_parsing import ReferenceParser
-from multiprocessing import Process, Pipe, Lock, Manager, Queue
+from multiprocessing import Process, Pipe, Lock, Manager, Queue, cpu_count
 from multiprocessing.connection import Connection
 
 
-class Pipeline:
+def parallel(constructor, kwargs, in_queue, out_queue, lock):
+    target = constructor(**kwargs)
+    while in_queue.qsize() > 0:
+        with lock:
+            document = in_queue.get()
+        target(document)
+        out_queue.put(1)
+
+
+def process_with_pool(data_directory: str, **kwargs):
+    """ Used to spawn multiple single process pipelines in different processes """
+    in_queue = Queue()
+
+    assert os.path.exists(data_directory), f"'{data_directory}' does not exists"
+
+    pdfs_location = os.path.join(data_directory, "pdfs")
+    assert os.path.exists(pdfs_location), f"'{pdfs_location}' does not exists"
+
+    for document in glob.glob(f"{pdfs_location}/*.pdf"):
+        in_queue.put(document)
+    assert in_queue.qsize() > 0, f"no documents found in '{data_directory}/pdfs/'"
+
+    lock = Lock()
+    out_queue = Queue()
+
+    constructor = PipelineSingleprocess if "pipeline" in kwargs else PipelineSingleprocess.factory
+    kwargs["data_directory"] = data_directory
+
+    processes = [Process(target=parallel,
+                          args=(constructor, kwargs, in_queue, out_queue, lock))
+                  for _ in range(cpu_count())]
+
+    n_documents = in_queue.qsize()
+    with tqdm.tqdm(total=n_documents, desc="Progress", unit="Documents") as progress_bar:
+        for process in processes:
+            process.start()
+
+        while out_queue.get():
+            progress_bar.update(1)
+            if progress_bar.n == n_documents:
+                break
+
+
+class PipelineSingleprocess:
+    """ Whole pipeline in one process """
+
+    def __init__(self,
+                 pipeline: List[Target],
+                 data_directory: str):
+        self.pipeline = pipeline
+        self.data_directory = data_directory
+
+    @staticmethod
+    def factory(data_directory: str):
+        return PipelineSingleprocess(
+            pipeline=[
+                FileParser(data_directory),
+                EmailParser(),
+                EntityParser(),
+                ReferenceParser(),
+                CsvWriter(data_directory),
+            ],
+            data_directory=data_directory
+        )
+
+    def __call__(self, document):
+        assert len(self.pipeline) > 0, "no pipes in pipeline"
+        for pipe in self.pipeline:
+            document = pipe(document)
+        return document
+
+
+class PipelineMultiprocess:
+    """ Pipeline with pipes distributed across different processes """
+
     def __init__(self,
                  pipeline: List[Pipe],
                  pipe_in: Union[Connection, Queue],
@@ -47,7 +121,7 @@ class Pipeline:
             Process(target=worker, args=(CsvWriter(data_directory), p5_out, p6_in, p5_lock)),
         ]
 
-        return Pipeline(pipeline, input_queue, p6_out, data_directory)
+        return PipelineMultiprocess(pipeline, input_queue, p6_out, data_directory)
 
     def start(self, files_dir="pdfs"):
         file_paths = glob.glob(f"{self.data_directory}/{files_dir}/*.pdf")

@@ -92,7 +92,7 @@ class CsvWriter(Target):
                 entity_name = CsvWriter.NER_LABEL_MAP[entity_name]
             for entity in entities:
                 result["Text"].append(entity)
-                result["Label"].append(entity_name)
+                result["Label"].append(entity_name.upper())
 
         file_path = os.path.join(self.output_path, document["name"] + ".csv")
 

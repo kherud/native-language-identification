@@ -42,16 +42,20 @@ def process_with_pool(data_directory: str, **kwargs):
     constructor = PipelineSingleprocess if "pipeline" in kwargs else PipelineSingleprocess.factory
     kwargs["data_directory"] = data_directory
 
+    n_processes = cpu_count()
+    if "processes" in kwargs and kwargs["processes"] is not None:
+        n_processes = kwargs["processes"]
     processes = [Process(target=parallel,
                           args=(constructor, kwargs, in_queue, out_queue, lock))
-                  for _ in range(cpu_count())]
+                  for _ in range(n_processes)]
 
     n_documents = in_queue.qsize()
-    with tqdm.tqdm(total=n_documents, desc="Progress", unit="Documents") as progress_bar:
+    with tqdm.tqdm(total=n_documents, desc="Status: Loading Pipes...", unit="Documents") as progress_bar:
         for process in processes:
             process.start()
 
         while out_queue.get():
+            progress_bar.set_description("Progress")
             progress_bar.update(1)
             if progress_bar.n == n_documents:
                 break
@@ -67,7 +71,7 @@ class PipelineSingleprocess:
         self.data_directory = data_directory
 
     @staticmethod
-    def factory(data_directory: str, ner_model: str = "models/ner"):
+    def factory(data_directory: str, ner_model: str = "models/ner", **kwargs):
         return PipelineSingleprocess(
             pipeline=[
                 FileParser(data_directory),

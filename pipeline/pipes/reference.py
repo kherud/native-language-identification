@@ -7,19 +7,39 @@ from itertools import combinations
 class ReferenceParser(Target):
     def __init__(self):
         super().__init__()
-        chars = "A-Za-z\x7f-\xffÀ-ž\u0370-\u03FF\u0400-\u04FF\-"
         self.space_re = re.compile(r"\s+")
-        self.noise_re = re.compile(f"[^{string.printable}\x7f-\xffÀ-ž\u0370-\u03FF\u0400-\u04FF]")
         self.refer_re = re.compile(r"([(\[](?:\w[^\d()\[\]]+\s[(\[]?[0-9]{4}[A-Za-z]?[(\[]?[;,\s]*)+[)\]])")
-        self.et_al_re = re.compile(rf"[{chars}]+\set\.?\s*al\.?\s+(?:[(\[][0-9]{{4}}[)\]])?")
-        self.and_re = re.compile(rf"(?:[{chars}]+,?\s+(?:(?:and)|&)\s+)+[{chars}]+[,\s]*(?:[(\[][0-9]{{4}}[A-Za-z]?[)\]]|[0-9]{{4}}[A-Za-z]?)")
-        self.name_re = re.compile(r"[0-9;,\[\]()]|et.? al.?|and")
+        self.et_al_re = re.compile(r"[^\d\s]+\set\.?\s*al\.?,?\s+(?:[(\[][0-9]{4}[)\]])?")
+        self.and_re = re.compile(r"(?:[^\d\s]+,?\s+(?:(?:and)|&)\s+)+[^\d\s]+[,\s]*(?:[(\[][0-9]{4}[A-Za-z]?[)\]]|[0-9]{4}[A-Za-z]?)")
+        self.name_re = re.compile(r"[A-Z][^A-Z\d\s()\[\],;\.]+")
+
+        self.year_re = re.compile(r"19[0-9]{2}|200[0-9]|201[0-9]")
+        self.numref_re = re.compile(r"\[[1-9]\d{0,2}\]")
+        self.pageline_re = re.compile(r"^\d+$")
+
+        refblock_re1 = "\s*".join("Reference") + "\s*s?\s*"
+        refblock_re1 += "|" + "\s*".join("REFERENCE") + "\s*S?\s*"
+        self.refblock_re1 = re.compile(refblock_re1)
+        self.refblock_re2 = re.compile("\s*".join("Literatur") + "\s*e?\s*")
+        self.refblock_re3 = re.compile("\s*".join("Bibliography"))
+
+        self.block_tolerance = 3
+
+        self.keywords = {'international', 'proceedings', 'conference', 'journal', 'aaai', 'arxiv', 'doi', 'preprint',
+                         'springer', 'advances', 'icml', 'association', 'acm', 'ieee', 'nips', 'cvpr', 'press', 'acl',
+                         'naacl', 'emnlp'}
 
     def __call__(self, document):
         assert isinstance(document, dict), f"wrong input of type {type(document)} to reference extractor"
 
-        text = self.space_re.sub(" ", document["text"])  # replace multiple whitespaces with single space
-        text = self.noise_re.sub("", text)
+        self.find_text_references(document)
+        self.find_reference_block(document)
+
+        return document
+
+    def find_text_references(self, document):
+        # replace multiple whitespaces with single space
+        text = self.space_re.sub(" ", document["text"])
 
         # find references based on different regular expressions
         references = []
@@ -42,17 +62,54 @@ class ReferenceParser(Target):
                 end = max(refer_a[2], refer_b[2])
                 references.append((text[start:end], start, end))
 
-        # extract names of authors in references
+        # extract names of authors in references and add reference entity
         document["references_authors"] = set()
         for reference in references:
-            reference = self.name_re.sub(" ", reference[0])
-            reference = self.space_re.sub(" ", reference)
-            for x in reference.split(" "):
-                if len(x) < 2 or not x.isalpha():
-                    continue
+            for x in self.name_re.findall(reference[0]):
                 document["references_authors"].add(x)
+            document["entities"][Entity.REFERENCE].add(reference[0])
 
-        for refer in references:
-            document["entities"][Entity.REFERENCE].add(refer[0])
+    def find_reference_block(self, document):
+        mention = None
+        for mention in self.refblock_re1.finditer(document["text"]):
+            pass  # iterate to last occurrence
 
-        return document
+        if mention is None:
+            for mention in self.refblock_re2.finditer(document["text"]):
+                pass  # iterate to last occurrence
+
+        if mention is None:
+            for mention in self.refblock_re3.finditer(document["text"]):
+                pass  # iterate to last occurrence
+
+        if mention is None:
+            return
+
+        lines = document["text"][mention.end():].split("\n")
+        names = document["references_authors"]
+
+        while len(lines) > 0:
+            reference_block, lines = self.lines_to_block(lines, names)
+            if len(reference_block) > 0:
+                document["entities"][Entity.REFERENCE].add(reference_block)
+            while len(lines) > 0 and not any(re.search("\s*".join(re.escape(c) for c in name), lines[0]) for name in names):
+                lines.pop(0)
+
+    def lines_to_block(self, lines, names):
+        index, c = 0, 0
+        for index, line in enumerate(lines):
+            if c == self.block_tolerance:
+                break
+
+            # search for any cue that the line belongs to references
+            if len(self.year_re.findall(line)) > 0 \
+                    or any(re.search("\s*".join(keyword), line, re.IGNORECASE) for keyword in self.keywords) \
+                    or self.numref_re.search(line) \
+                    or any(re.search("\s*".join(re.escape(c) for c in name), line) for name in names) \
+                    or self.pageline_re.match(line):
+                c = 0
+            else:
+                c += 1
+
+        # join lines to single string and return remaining lines
+        return "\n".join(lines[:index - c]), lines[index:]

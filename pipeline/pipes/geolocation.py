@@ -22,4 +22,12 @@ class LocationParser(Target):
             for match in re.finditer("[\s-]*".join(mention), document["text"], re.IGNORECASE):
                 document["entities"][Entity.COUNTRY].add(document["text"][match.start():match.end()])
 
+        geo = GeoText(document["text"][:document["abstract_start"]])
+
+        for mention in geo.country_mentions:
+            if mention.lower() in self.stop_words:
+                continue
+            for match in re.finditer(mention, document["text"], re.IGNORECASE):
+                document["entities"][Entity.COUNTRY].add(document["text"][match.start():match.end()])
+
         return document

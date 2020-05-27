@@ -23,7 +23,7 @@ class LanguageParser(Target):
 
         noise_re = r"et\.?\sal\.?|et\.?\s|al\."
         if "references_authors" in document:
-            noise_re += "|".join(x for x in document["references_authors"])
+            noise_re += "|".join(re.escape(x) for x in document["references_authors"])
         noise_re = re.compile(noise_re, re.IGNORECASE)
 
         for sentence in document["sentences"]:

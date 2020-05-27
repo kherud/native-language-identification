@@ -23,7 +23,7 @@ class AcknowledgementParser(Target):
 
         ack_end = "R\s?eference|Conclusion|Discussion|Case\sStudies|Proposition|Results|Related\sWork|Appendix|Proof|Theorem|Table|Figure"
         if "references_authors" in document:
-            ack_end += "|".join(document["references_authors"])
+            ack_end += "|".join(re.escape(x) for x in document["references_authors"])
 
         ack = re.search(rf"(.*)(\n(\d{{1,3}})?\n+(.{{1,50}})?({ack_end}))", ack_text, re.IGNORECASE)
 

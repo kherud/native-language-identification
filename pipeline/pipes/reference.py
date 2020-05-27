@@ -23,7 +23,7 @@ class ReferenceParser(Target):
         self.refblock_re2 = re.compile("\s*".join("Literatur") + "\s*e?\s*")
         self.refblock_re3 = re.compile("\s*".join("Bibliography"))
 
-        self.block_tolerance = 3
+        self.block_tolerance = 4
 
         self.keywords = {'international', 'proceedings', 'conference', 'journal', 'aaai', 'arxiv', 'doi', 'preprint',
                          'springer', 'advances', 'icml', 'association', 'acm', 'ieee', 'nips', 'cvpr', 'press', 'acl',
@@ -92,7 +92,10 @@ class ReferenceParser(Target):
             reference_block, lines = self.lines_to_block(lines, names)
             if len(reference_block) > 0:
                 document["entities"][Entity.REFERENCE].add(reference_block)
-            while len(lines) > 0 and not any(re.search("\s*".join(re.escape(c) for c in name), lines[0]) for name in names):
+            while len(lines) > 0 and not (
+                    any(re.search("\s*".join(re.escape(c) for c in name), lines[0]) for name in names) or
+                    self.numref_re.search(lines[0])
+            ):
                 lines.pop(0)
 
     def lines_to_block(self, lines, names):

@@ -1,34 +1,25 @@
-import re
 import os
 import spacy
-from . import Target
+from . import Target, Entity
 
 
 class AuthorParser(Target):
     def __init__(self, model_dir):
         super().__init__()
         self.model_dir = os.path.abspath(model_dir)
+        assert os.path.exists(self.model_dir), f"ner model directory '{self.model_dir}' does not exist"
+
         self.ner = spacy.load(self.model_dir)
-        self.abstract_re = re.compile("\s*".join("Abstract"))
 
     def __call__(self, document):
         assert isinstance(document, dict), f"wrong input of type {type(document)} to author parser"
 
-        abstract = self.abstract_re.search(document["text"])
-
-        if not abstract or abstract.start() > 2000:
-            abstract_start = 800
-        else:
-            abstract_start = abstract.start()
-
-        text = document["text"][:abstract_start]
-
-        result = self.ner(text)
+        result = self.ner(document["text"][:document["abstract_start"]])
 
         for ent in result.ents:
             if ent.label_ == "PERSON":
-                document["entities"]["author"].add(ent.text)
+                document["entities"][Entity.AUTHOR].add(ent.text)
             if ent.label_ == "ORG":
-                document["entities"]["institution/company"].add(ent.text)
+                document["entities"][Entity.INSTITUTION_COMPANY].add(ent.text)
 
         return document

@@ -3,13 +3,15 @@ import glob
 import tqdm
 from typing import List, Union
 from pipeline.pipes import worker, Target
-from pipeline.pipes.file import FileParser, CsvWriter
-from pipeline.pipes.email import EmailParser
-from pipeline.pipes.entity import EntityParser
-from pipeline.pipes.author import AuthorParser
-from pipeline.pipes.reference import ReferenceParser
-from pipeline.pipes.geolocation import LocationParser
 from pipeline.pipes.acknowledgement import AcknowledgementParser
+from pipeline.pipes.author import AuthorParser
+from pipeline.pipes.email import EmailParser
+# from pipeline.pipes.entity import EntityParser
+from pipeline.pipes.file import FileParser, CsvWriter
+from pipeline.pipes.footnotes import FootnoteParser
+from pipeline.pipes.geolocation import LocationParser
+from pipeline.pipes.language import LanguageParser
+from pipeline.pipes.reference import ReferenceParser
 from multiprocessing import Process, Pipe, Lock, Manager, Queue, cpu_count
 from multiprocessing.connection import Connection
 
@@ -77,9 +79,11 @@ class PipelineSingleprocess:
                 FileParser(data_directory),
                 AuthorParser(ner_model),
                 EmailParser(),
-                LocationParser(),
                 ReferenceParser(),
+                LocationParser(),
                 AcknowledgementParser(),
+                LanguageParser(),
+                FootnoteParser(),
                 CsvWriter(data_directory),
             ],
             data_directory=data_directory

@@ -38,8 +38,8 @@ if args.directory:
 
 if args.file:
     assert exists(args.file), f"pdf file '{args.file}' does not exist"
-    data_directory = dirname(dirname(args.file))
     assert exists(args.file.replace("pdfs", "txts") + ".txt"), f"associated txt file for '{args.file}' does not exist in '{join(data_directory, 'txts')}'"
+    data_directory = dirname(dirname(args.file))
 
     logging.info("loading pipeline")
     pipeline = PipelineSingleprocess.factory(data_directory)

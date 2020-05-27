@@ -1,4 +1,6 @@
 import os
+import re
+import spacy
 import pandas as pd
 from . import Target
 from collections import defaultdict
@@ -11,20 +13,33 @@ from pdfminer.layout import LAParams, LTTextBox
 
 
 class FileParser(Target):
-    def __init__(self, data_directory):
+    def __init__(self, data_directory, sentencizer_dir: str = "models/sentencizer"):
         super().__init__()
         self.data_directory = data_directory
+
+        self.sentencizer_dir = os.path.abspath(sentencizer_dir)
+        assert os.path.exists(self.sentencizer_dir), f"ner model directory '{self.sentencizer_dir}' does not exist"
+        self.sentencizer = spacy.load(self.sentencizer_dir)
+
+        self.abstract_re = re.compile("\s*".join("Abstract"))
 
     def __call__(self, document):
         assert type(document) == str, f"input to file parser has wrong type: {type(document)}"
         assert document.endswith(".pdf") or document.endswith(".txt"), "invalid file path / type"
 
         document_name = self.get_document_name(document)
+        document_text = self.get_text(document_name)
+
+        abstract_start, abstract_end = self.detect_abstract(document_text)
+
         return {
             "name": document_name,
-            "pdf_structure": self.get_pdf_structure(document_name),
-            "text": self.get_text(document_name),
-            "entities": defaultdict(set)
+            # "pdf_structure": self.get_pdf_structure(document_name),
+            "text": document_text,
+            "entities": defaultdict(set),
+            "abstract_start": abstract_start,
+            "abstract_end": abstract_end,
+            "sentences": self.get_sentences(document_text[abstract_end:]),
         }
 
     def get_document_name(self, document):
@@ -65,13 +80,24 @@ class FileParser(Target):
         with open(f"{os.path.join(self.data_directory, 'txts', document_name)}.pdf.txt", "r") as file:
             return file.read()
 
+    def detect_abstract(self, text):
+        abstract = self.abstract_re.search(text)
+
+        if not abstract or abstract.start() > 2000:
+            return 800, 800  # return 99% CI
+        else:
+            return abstract.start(), abstract.end()
+
+    def get_sentences(self, text):
+        try:
+            result = self.sentencizer(text)
+            return result.sents
+        except KeyError:
+            print("cannot parse sentences")
+            return []
+
 
 class CsvWriter(Target):
-    NER_LABEL_MAP = {
-        "PER": "Autor"
-        # ...
-    }
-
     def __init__(self, data_directory):
         super().__init__()
         self.output_path = os.path.join(data_directory, "csv")
@@ -88,11 +114,9 @@ class CsvWriter(Target):
         }
 
         for entity_name, entities in document["entities"].items():
-            if entity_name in CsvWriter.NER_LABEL_MAP:
-                entity_name = CsvWriter.NER_LABEL_MAP[entity_name]
             for entity in entities:
                 result["Text"].append(entity)
-                result["Label"].append(entity_name.upper())
+                result["Label"].append(str(entity_name))
 
         file_path = os.path.join(self.output_path, document["name"] + ".csv")
 

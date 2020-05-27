@@ -1,4 +1,5 @@
 spacy
+spacy_cld
 tqdm
 pdfminer
 pandas

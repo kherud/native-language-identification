@@ -41,6 +41,7 @@ dependencies:
     - requests==2.23.0
     - six==1.15.0
     - spacy==2.2.4
+    - spacy-cld==0.1.0
     - srsly==1.0.2
     - thinc==7.4.0
     - tqdm==4.46.0

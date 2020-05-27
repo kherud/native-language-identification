@@ -1,4 +1,22 @@
 import abc
+import re
+from enum import Enum, auto
+
+
+class Entity(Enum):
+    ACKNOWLEDGEMENT = auto()
+    AUTHOR = auto()
+    COUNTRY = auto()
+    EMAIL = auto()
+    FOOTNOTE = auto()
+    INSTITUTION_COMPANY = auto()
+    LANGUAGE = auto()
+    PERSONAL_DATA = auto()
+    REFERENCE = auto()
+    REVIEWER = auto()
+
+    def __str__(self):
+        return str(self.name)
 
 
 class Target(abc.ABC):

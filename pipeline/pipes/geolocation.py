@@ -1,5 +1,5 @@
 import re
-from . import Target
+from . import Target, Entity
 from geotext import GeoText
 from spacy.lang.en.stop_words import STOP_WORDS
 
@@ -20,6 +20,6 @@ class LocationParser(Target):
             if mention.lower() in self.stop_words:
                 continue
             for match in re.finditer("[\s-]*".join(mention), document["text"], re.IGNORECASE):
-                document["entities"]["COUNTRY"].add(document["text"][match.start():match.end()])
+                document["entities"][Entity.COUNTRY].add(document["text"][match.start():match.end()])
 
         return document

@@ -43,7 +43,7 @@ if args.file:
 
     logging.info("loading pipeline")
     pipeline = PipelineSingleprocess.factory(data_directory)
-    result = pipeline("data/pdfs/AAAI12-4.pdf")
+    result = pipeline(args.file)
     print("{0:<25}{1}".format("Label", "Text"))
     print("-" * 50)
     for key, value in zip(result["Label"], result["Text"]):

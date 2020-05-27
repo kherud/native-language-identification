@@ -12,7 +12,7 @@ Move data to `data/pdfs` and `data/txts`.
 Loading the pipeline may take a while before processing begins.
 
 ```
-parse_files.py [-d DIRECTORY] [-f FILE] [-p PROCESSES]
+extract_entities.py [-d DIRECTORY] [-f FILE] [-p PROCESSES]
 
 optional arguments:
   -d DIRECTORY, --directory DIRECTORY

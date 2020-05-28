@@ -1,5 +1,4 @@
 import abc
-import re
 from enum import Enum, auto
 
 

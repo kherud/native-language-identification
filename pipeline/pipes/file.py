@@ -1,6 +1,7 @@
 import os
 import re
 import spacy
+import logging
 import pandas as pd
 from . import Target
 from collections import defaultdict
@@ -56,6 +57,7 @@ class FileParser(Target):
                 device = PDFPageAggregator(rsrcmgr, laparams=laparams)
                 interpreter = PDFPageInterpreter(rsrcmgr, device)
             except:
+                logging.error(f"cannot parse pdf structure of '{document_name}'")
                 return {}
 
             structure = {}
@@ -65,6 +67,7 @@ class FileParser(Target):
                     layout = device.get_result()
                     structure[f"{index}_{type(page).__name__}"] = self.parse_layout(layout)
                 except:
+                    logging.error(f"cannot parse page {index+1} of '{document_name}.pdf'")
                     structure[f"{index}_{type(page).__name__}"] = ""
 
         return structure
@@ -93,7 +96,7 @@ class FileParser(Target):
             result = self.sentencizer(text)
             return result.sents
         except KeyError:
-            print("cannot parse sentences")
+            logging.error("cannot parse sentences")
             return []
 
 

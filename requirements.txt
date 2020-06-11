@@ -5,3 +5,6 @@ pdfminer
 pandas
 numpy
 geotext
+readchar
+torch
+tokenizers

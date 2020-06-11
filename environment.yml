@@ -2,7 +2,7 @@ name: prjak
 channels:
   - defaults
 dependencies:
-  - python=3.6
+  - python=3.7
   - pip:
     - spacy==2.2.4
     - spacy_cld==0.1.0
@@ -11,3 +11,6 @@ dependencies:
     - pandas==1.0.3
     - numpy==1.18.4
     - geotext==0.4.0
+    - torch==1.5.0
+    - tokenizers==0.7.0
+    - readchar==2.0.1

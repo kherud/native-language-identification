@@ -2,6 +2,7 @@ import os
 import re
 import spacy
 import logging
+import pickle
 import pandas as pd
 from . import Target
 from collections import defaultdict
@@ -14,7 +15,10 @@ from pdfminer.layout import LAParams, LTTextBox
 
 
 class FileParser(Target):
-    def __init__(self, data_directory, sentencizer_dir: str = "models/sentencizer"):
+    def __init__(self,
+                 data_directory,
+                 sentencizer_dir: str = os.path.abspath("models/sentencizer"),
+                 conferences_file_path: str = os.path.abspath("pipeline/conferences.pkl")):
         super().__init__()
         self.data_directory = data_directory
 
@@ -22,7 +26,15 @@ class FileParser(Target):
         assert os.path.exists(self.sentencizer_dir), f"ner model directory '{self.sentencizer_dir}' does not exist"
         self.sentencizer = spacy.load(self.sentencizer_dir)
 
-        self.abstract_re = re.compile("\s*".join("ABSTRACT") + "\s+|" + "\s*".join("Abstract") + "\s+")
+        try:
+            assert os.path.exists(conferences_file_path), f"conference data '{conferences_file_path}' does not exist"
+            with open(conferences_file_path, "rb") as file:
+                self.conferences = pickle.load(file)
+        except AssertionError:
+            logging.error(f"{conferences_file_path} not found")
+            self.conferences = {}
+
+        self.abstract_re = re.compile("\s*".join("ABSTRACT") + "|" + "\s*".join("Abstract"))
 
     def __call__(self, document):
         assert type(document) == str, f"input to file parser has wrong type: {type(document)}"
@@ -31,16 +43,23 @@ class FileParser(Target):
         document_name = self.get_document_name(document)
         document_text = self.get_text(document_name)
 
-        abstract_start, abstract_end = self.detect_abstract(document_text)
+        if document_name in self.conferences:
+            meta = self.conferences[document_name]
+        else:
+            meta = {}
+            logging.error(f"{document_name} not found in conferences file")
+
+        abstract_start, abstract_end = self.detect_abstract(document_text, meta)
 
         return {
             "name": document_name,
+            "meta": meta,
+            "abstract_start": abstract_start,
+            "abstract_end": abstract_end,
             # "pdf_structure": self.get_pdf_structure(document_name),
             "text": document_text,
             "text_cleaned": document_text,
             "entities": defaultdict(set),
-            "abstract_start": abstract_start,
-            "abstract_end": abstract_end,
             "sentences": self.get_sentences(document_text[abstract_end:]),
         }
 
@@ -73,6 +92,25 @@ class FileParser(Target):
 
         return structure
 
+    def detect_abstract(self, text, meta):
+        abstract_mention = None
+        abstract_title_mentions = []
+        if "title" in meta:
+            abstract_title_mentions = self.abstract_re.findall(meta["title"])
+        if len(abstract_title_mentions) > 0:
+            abstract_mentions = list(self.abstract_re.finditer(text))
+            if len(abstract_mentions) >= len(abstract_title_mentions):
+                abstract_mention = abstract_mentions[len(abstract_title_mentions)]
+        else:
+            abstract_mention = self.abstract_re.search(text)
+
+        if abstract_mention is None:
+            return 800, 800  # mean based default value
+        else:
+            start = min(abstract_mention.start(), 2500)
+            end = min(abstract_mention.end(), 2500)
+            return start, end  # min due to error tolerance
+
     def parse_layout(self, layout):
         if not isinstance(layout, LTTextBox):
             return {f"{index}_{type(obj).__name__}": self.parse_layout(obj)
@@ -83,15 +121,6 @@ class FileParser(Target):
     def get_text(self, document_name):
         with open(f"{os.path.join(self.data_directory, 'txts', document_name)}.pdf.txt", "r") as file:
             return file.read()
-
-    def detect_abstract(self, text):
-        abstract = self.abstract_re.search(text)
-
-        if not abstract or abstract.start() > 2000:
-            logging.error("no valid abstract found")
-            return 800, 800  # return 99% CI
-        else:
-            return abstract.start(), abstract.end()
 
     def get_sentences(self, text):
         try:

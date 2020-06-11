@@ -1,7 +1,7 @@
 import argparse
+import logging
 from os.path import exists, join, dirname
 from pipeline import PipelineSingleprocess, process_with_pool
-import logging
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--directory",

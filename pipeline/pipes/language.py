@@ -44,4 +44,6 @@ class LanguageParser(Target):
 
             document["entities"][Entity.LANGUAGE].add(sentence.text)
 
+            self.clean_text(document, sentence_text)
+
         return document

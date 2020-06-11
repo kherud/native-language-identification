@@ -11,9 +11,12 @@ class EmailParser(Target):
     def __call__(self, document):
         assert isinstance(document, dict), f"wrong input of type {type(document)} to email extractor"
 
-        for email in self.email_re.findall(document["text"]):
+        for email in self.email_re.findall(document["text_cleaned"]):
             document["entities"][Entity.EMAIL].add(email)
-        for email in self.email_re2.findall(document["text"]):
+        for email in self.email_re2.findall(document["text_cleaned"]):
             document["entities"][Entity.EMAIL].add(email)
+
+        for email in document["entities"][Entity.EMAIL]:
+            self.clean_text(document, email)
 
         return document

@@ -35,6 +35,10 @@ class ReferenceParser(Target):
         self.find_text_references(document)
         self.find_reference_block(document)
 
+        # remove references from text
+        for reference in document["entities"][Entity.REFERENCE]:
+            self.clean_text(document, reference[0])
+
         return document
 
     def find_text_references(self, document):
@@ -85,13 +89,14 @@ class ReferenceParser(Target):
         if mention is None:
             return
 
-        lines = document["text"][mention.end():].split("\n")
+        lines = document["text_cleaned"][mention.end():].split("\n")
         names = document["references_authors"]
 
         while len(lines) > 0:
             reference_block, lines = self.lines_to_block(lines, names)
             if len(reference_block) > 0:
                 document["entities"][Entity.REFERENCE].add(reference_block)
+                self.clean_text(document, reference_block)
             while len(lines) > 0 and not (
                     any(re.search("\s*".join(re.escape(c) for c in name), lines[0]) for name in names) or
                     self.numref_re.search(lines[0])
@@ -104,7 +109,7 @@ class ReferenceParser(Target):
             if c == self.block_tolerance:
                 break
 
-            # search for any cue that the line belongs to references
+            # search for any clue that the line belongs to references
             if len(self.year_re.findall(line)) > 0 \
                     or any(re.search("\s*".join(keyword), line, re.IGNORECASE) for keyword in self.keywords) \
                     or self.numref_re.search(line) \

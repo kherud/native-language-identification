@@ -7,21 +7,23 @@ class AcknowledgementParser(Target):
         super().__init__()
         self.reference_re = re.compile(r"[0-9;,\[\]()]|et\.?\sal\.?|and")
         self.year_re = re.compile(r"[0-9]{4}")
-        self.ack_re = re.compile("\s*".join("Acknowledg") + "e?" + "\s*".join("ment") + "(?:\s*s)?\s*")
-
+        ack_re = "\s*".join("Acknowledg") + "e?" + "\s*".join("ment") + "(?:\s*s)?\s*"
+        ack_re += "|" + "\s*".join("ACKNOWLEDG") + "E?" + "\s*".join("MENT") + "(?:\s*s)?\s*"
+        self.ack_re = re.compile(ack_re)
 
     def __call__(self, document):
         assert isinstance(document, dict), f"wrong input of type {type(document)} to acknowledgement parser"
 
-        ack_mentions = list(self.ack_re.finditer(document["text"]))
+        mention = None
+        for mention in self.ack_re.finditer(document["text_cleaned"]):
+            pass  # iterate to last occurrence
 
-        if len(ack_mentions) == 0:
+        if mention is None:
             return document
 
-        ack_mention = ack_mentions[-1]
-        ack_text = document["text"][ack_mention.end():]
+        ack_text = document["text_cleaned"][mention.end():]
 
-        ack_end = "R\s?eference|Conclusion|Discussion|Case\sStudies|Proposition|Results|Related\sWork|Appendix|Proof|Theorem|Table|Figure"
+        ack_end = "R\s?eference|C\s?onclusion|D\s?iscussion|Case\sStudies|Proposition|R\s?esults|Related\sWork|A\s?ppendix|Proof|Theorem|Table|Figure"
         if "references_authors" in document:
             ack_end += "|".join(re.escape(x) for x in document["references_authors"])
 
@@ -40,6 +42,8 @@ class AcknowledgementParser(Target):
         ack = re.sub(rf"\n.?{ack_end}$", "", ack)
 
         document["entities"][Entity.ACKNOWLEDGEMENT].add(ack)
+
+        self.clean_text(document, ack)
 
         return document
 

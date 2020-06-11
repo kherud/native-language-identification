@@ -4,13 +4,14 @@ import tqdm
 from typing import List, Union
 from pipeline.pipes import worker, Target
 from pipeline.pipes.acknowledgement import AcknowledgementParser
-from pipeline.pipes.author import AuthorParser
+# from pipeline.pipes.author import AuthorParser
 from pipeline.pipes.email import EmailParser
 # from pipeline.pipes.entity import EntityParser
-from pipeline.pipes.file import FileParser, CsvWriter
+from pipeline.pipes.file import FileParser, CsvWriter, TextWriter
 from pipeline.pipes.footnotes import FootnoteParser
 from pipeline.pipes.geolocation import LocationParser
 from pipeline.pipes.language import LanguageParser
+from pipeline.pipes.pre_abstract import PreAbstractParser
 from pipeline.pipes.reference import ReferenceParser
 from multiprocessing import Process, Pipe, Lock, Manager, Queue, cpu_count
 from multiprocessing.connection import Connection
@@ -73,11 +74,14 @@ class PipelineSingleprocess:
         self.data_directory = data_directory
 
     @staticmethod
-    def factory(data_directory: str, ner_model: str = "models/ner", **kwargs):
+    def factory(data_directory: str,
+                pre_abstract_model_dir: str = "models/pre_abstract/model",
+                **kwargs):
         return PipelineSingleprocess(
             pipeline=[
                 FileParser(data_directory),
-                AuthorParser(ner_model),
+                PreAbstractParser(pre_abstract_model_dir),
+                # AuthorParser(ner_model),
                 EmailParser(),
                 ReferenceParser(),
                 LocationParser(),
@@ -85,6 +89,7 @@ class PipelineSingleprocess:
                 LanguageParser(),
                 FootnoteParser(),
                 CsvWriter(data_directory),
+                TextWriter(data_directory),
             ],
             data_directory=data_directory
         )

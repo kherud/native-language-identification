@@ -6,6 +6,8 @@ from . import Target, Entity
 class AuthorParser(Target):
     def __init__(self, model_dir):
         super().__init__()
+        raise DeprecationWarning()
+
         self.model_dir = os.path.abspath(model_dir)
         assert os.path.exists(self.model_dir), f"ner model directory '{self.model_dir}' does not exist"
 
@@ -21,5 +23,6 @@ class AuthorParser(Target):
                 document["entities"][Entity.AUTHOR].add(ent.text)
             if ent.label_ == "ORG":
                 document["entities"][Entity.INSTITUTION_COMPANY].add(ent.text)
+            self.clean_text(document, ent.text)
 
         return document

@@ -29,4 +29,6 @@ class FootnoteParser(Target):
                     continue
                 document["entities"][Entity.FOOTNOTE].add(sentence.text)
 
+                self.clean_text(document, sentence.text)
+
         return document

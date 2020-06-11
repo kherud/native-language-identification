@@ -15,7 +15,7 @@ parser.add_argument("-p", "--processes",
                     type=int)
 parser.add_argument("-v", "--verbose",
                     help="print additional output (mainly for debugging)",
-                    type=int)
+                    action="store_true")
 
 args = parser.parse_args()
 
@@ -43,9 +43,9 @@ if args.file:
 
     logging.info("loading pipeline")
     pipeline = PipelineSingleprocess.factory(data_directory)
-    result = pipeline(args.file)
+    document = pipeline(args.file)
     print("{0:<25}{1}".format("Label", "Text"))
     print("-" * 50)
-    for key, value in zip(result["Label"], result["Text"]):
+    for key, value in zip(document["result"]["Label"], document["result"]["Text"]):
         print(f"{key:<25}{value}")
     logging.info("finished processing")

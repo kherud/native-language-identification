@@ -22,7 +22,7 @@ class FileParser(Target):
         assert os.path.exists(self.sentencizer_dir), f"ner model directory '{self.sentencizer_dir}' does not exist"
         self.sentencizer = spacy.load(self.sentencizer_dir)
 
-        self.abstract_re = re.compile("\s*".join("Abstract"))
+        self.abstract_re = re.compile("\s*".join("ABSTRACT") + "\s+|" + "\s*".join("Abstract") + "\s+")
 
     def __call__(self, document):
         assert type(document) == str, f"input to file parser has wrong type: {type(document)}"
@@ -37,6 +37,7 @@ class FileParser(Target):
             "name": document_name,
             # "pdf_structure": self.get_pdf_structure(document_name),
             "text": document_text,
+            "text_cleaned": document_text,
             "entities": defaultdict(set),
             "abstract_start": abstract_start,
             "abstract_end": abstract_end,
@@ -87,6 +88,7 @@ class FileParser(Target):
         abstract = self.abstract_re.search(text)
 
         if not abstract or abstract.start() > 2000:
+            logging.error("no valid abstract found")
             return 800, 800  # return 99% CI
         else:
             return abstract.start(), abstract.end()
@@ -101,9 +103,9 @@ class FileParser(Target):
 
 
 class CsvWriter(Target):
-    def __init__(self, data_directory):
+    def __init__(self, data_directory, output_dir="csvs"):
         super().__init__()
-        self.output_path = os.path.join(data_directory, "csv")
+        self.output_path = os.path.join(data_directory, output_dir)
 
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)
@@ -125,4 +127,25 @@ class CsvWriter(Target):
 
         pd.DataFrame(result).to_csv(file_path, index=False)
 
-        return result
+        document["result"] = result
+
+        return document
+
+
+class TextWriter(Target):
+    def __init__(self, data_directory, output_dir="txts_cleaned"):
+        super().__init__()
+        self.output_path = os.path.join(data_directory, output_dir)
+
+        if not os.path.exists(self.output_path):
+            os.makedirs(self.output_path)
+
+    def __call__(self, document):
+        assert type(document) == dict, f"input to file parser has wrong type: {type(document)}"
+
+        file_path = os.path.join(self.output_path, document["name"] + ".txt")
+
+        with open(file_path, "w") as file:
+            file.write(document["text_cleaned"])
+
+        return document

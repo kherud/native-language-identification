@@ -24,8 +24,13 @@ class LocationParser(Target):
                 if country.capitalize() != country:
                     continue
                 document["entities"][Entity.COUNTRY].add(country)
-                self.clean_text(document, country, cased=True)
 
+        # sort to match longest first
+        sorted_countries = sorted(document["entities"][Entity.COUNTRY], key=lambda country: len(country), reverse=True)
+        for country in sorted_countries:
+            if len(country) < 4:
+                continue
+            self.clean_text(document, country, cased=True)
 
         # low precision -> UK, CH etc.
         # geo = GeoText(document["text"][:document["abstract_start"]])

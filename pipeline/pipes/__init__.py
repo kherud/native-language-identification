@@ -28,7 +28,7 @@ class Target(abc.ABC):
         pass
 
     def clean_text(self, document, substring, cased=False):
-        regex = "\s*".join(re.escape(c) for c in substring)
+        regex = r"\s*".join(re.escape(c) for c in substring.split())
         if cased:
             document["text_cleaned"] = re.sub(regex, "", document["text_cleaned"])
         else:

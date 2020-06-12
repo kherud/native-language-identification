@@ -16,7 +16,9 @@ class EmailParser(Target):
         for email in self.email_re2.findall(document["text_cleaned"]):
             document["entities"][Entity.EMAIL].add(email)
 
-        for email in document["entities"][Entity.EMAIL]:
+        # sort to match longest first
+        sorted_emails = sorted(document["entities"][Entity.EMAIL], key=lambda email: len(email), reverse=True)
+        for email in sorted_emails:
             self.clean_text(document, email)
 
         return document

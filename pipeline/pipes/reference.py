@@ -8,9 +8,9 @@ class ReferenceParser(Target):
     def __init__(self):
         super().__init__()
         self.space_re = re.compile(r"\s+")
-        self.refer_re = re.compile(r"([(\[](?:\w[^\d()\[\]]+\s[(\[]?[0-9]{4}[A-Za-z]?[(\[]?[;,\s]*)+[)\]])")
-        self.et_al_re = re.compile(r"[^\d\s]+\set\.?\s*al\.?,?\s+(?:[(\[][0-9]{4}[)\]])?")
-        self.and_re = re.compile(r"(?:[^\d\s]+,?\s+(?:(?:and)|&)\s+)+[^\d\s]+[,\s]*(?:[(\[][0-9]{4}[A-Za-z]?[)\]]|[0-9]{4}[A-Za-z]?)")
+        self.refer_re = re.compile(r"([(\[](?:\w[^\d()\[\]]+\s[(\[]?[12][0-9]{3}[A-Za-z]?[(\[]?[;,\s]*)+[)\]])")
+        self.et_al_re = re.compile(r"[^\d\s]+\set\.?\s*al\.?,?\s+(?:[(\[][12][0-9]{3}[)\]])?")
+        self.and_re = re.compile(r"(?:[^\d\s]+,?\s+(?:(?:and)|&)\s+)+[^\d\s]+[,\s]*(?:[(\[][12][0-9]{3}[A-Za-z]?[)\]]|[12][0-9]{3}[A-Za-z]?)")
         self.name_re = re.compile(r"[A-Z][^A-Z\d\s()\[\],;\.]+")
 
         self.year_re = re.compile(r"19[0-9]{2}|200[0-9]|201[0-9]")
@@ -35,9 +35,10 @@ class ReferenceParser(Target):
         self.find_text_references(document)
         self.find_reference_block(document)
 
-        # remove references from text
-        for reference in document["entities"][Entity.REFERENCE]:
-            self.clean_text(document, reference[0])
+        # remove references from text, sort to match longest first
+        sorted_ref = sorted(document["entities"][Entity.REFERENCE], key=lambda ref: len(ref), reverse=True)
+        for reference in sorted_ref:
+            self.clean_text(document, reference)
 
         return document
 
@@ -98,7 +99,7 @@ class ReferenceParser(Target):
                 document["entities"][Entity.REFERENCE].add(reference_block)
                 self.clean_text(document, reference_block)
             while len(lines) > 0 and not (
-                    any(re.search("\s*".join(re.escape(c) for c in name), lines[0]) for name in names) or
+                    any(re.search("[\s\-]*".join(re.escape(c) for c in name.split()), lines[0]) for name in names) or
                     self.numref_re.search(lines[0])
             ):
                 lines.pop(0)
@@ -113,7 +114,7 @@ class ReferenceParser(Target):
             if len(self.year_re.findall(line)) > 0 \
                     or any(re.search("\s*".join(keyword), line, re.IGNORECASE) for keyword in self.keywords) \
                     or self.numref_re.search(line) \
-                    or any(re.search("\s*".join(re.escape(c) for c in name), line) for name in names) \
+                    or any(re.search(r"[\s\-]*".join(re.escape(c) for c in name.split()), line) for name in names) \
                     or self.pageline_re.match(line):
                 c = 0
             else:

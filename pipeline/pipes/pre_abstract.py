@@ -5,6 +5,7 @@ import logging
 from tokenizers import ByteLevelBPETokenizer
 from os.path import exists, join, abspath
 from . import Target, Entity
+from models.pre_abstract.model import LSTMTagger
 
 
 class PreAbstractParser(Target):
@@ -14,21 +15,29 @@ class PreAbstractParser(Target):
 
         assert exists(self.model_dir), f"model directory '{self.model_dir}' does not exist"
         assert exists(join(self.model_dir, "classes.json")), f"classes file does not exist in {self.model_dir}"
+        assert exists(join(self.model_dir, "config.json")), f"configuration file does not exist in {self.model_dir}"
         assert exists(join(self.model_dir, "merges.txt")), f"merges file does not exist in {self.model_dir}"
-        assert exists(join(self.model_dir, "model.pt")), f"model file does not exist in {self.model_dir}"
+        assert exists(join(self.model_dir, "weights.pt")), f"weights file does not exist in {self.model_dir}"
         assert exists(join(self.model_dir, "vocab.json")), f"vocab file does not exist in {self.model_dir}"
 
-        if not torch.cuda.is_available():
-            device = "cpu"
-        self.device = torch.device(device)
-        self.model = torch.load(join(self.model_dir, "model.pt")).to(self.device)
-        self.model.eval()
-        self.tokenizer = ByteLevelBPETokenizer(vocab_file=join(self.model_dir, "vocab.json"),
-                                               merges_file=join(self.model_dir, "merges.txt"),
-                                               lowercase=False)
         with open(join(self.model_dir, "classes.json"), "r") as classes_file:
             self.class_to_index = json.load(classes_file)
             self.index_to_class = {v: k for k, v in self.class_to_index.items()}
+        with open(join(self.model_dir, "config.json"), "r") as config_file:
+            self.model_config = json.load(config_file)
+        if not torch.cuda.is_available():
+            device = "cpu"
+        self.device = torch.device(device)
+        self.model = LSTMTagger(vocab_size=self.model_config["vocab_size"],
+                                embedding_dim=self.model_config["embedding_dim"],
+                                lstm_dim=self.model_config["lstm_dim"],
+                                n_classes=len(self.class_to_index)).to(self.device)
+        weights = torch.load(join(self.model_dir, "weights.pt"), map_location=device)
+        self.model.load_state_dict(weights)
+        self.model.eval()
+        self.tokenizer = ByteLevelBPETokenizer(vocab_file=join(self.model_dir, "vocab.json"),
+                                               merges_file=join(self.model_dir, "merges.txt"),
+                                               lowercase=self.model_config["lowercase"])
 
         self.department_re = re.compile("(?:,\s*)?[^,]*Department[^,]*(?:,)", re.IGNORECASE)
 

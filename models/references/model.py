@@ -1,24 +1,27 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 
 class LSTMTagger(nn.Module):
     """
-    This model is used to annotate each line of text before the abstract of a paper.
-    The idea is to feed each line into the model and encode it through a single lstm to an attention-weighted hidden state,
-    then have a second lstm label each of these state vectors.
+        This model is used to annotate each line of text the paper.
+        The idea is to feed each line into the model and encode it through a single lstm to an attention-weighted hidden state,
+        then have a second lstm label each of these state vectors.
+        A positional encoding vector is added to the hidden states to represent the position in the document.
     """
-    def __init__(self, vocab_size: int, embedding_dim: int, lstm_dim: int, n_classes: int):
+    def __init__(self, vocab_size: int, embedding_dim: int, lstm_dim: int, device):
         """
         :param vocab_size: Amount of tokens / embedding vectors
         :param embedding_dim: Dimensionality of the embeddings
         :param lstm_dim: Hidden dimension of the lstm encoder
-        :param n_classes: Amount of labels
+        :param device: Torch device (cpu/gpu)
         """
         super(LSTMTagger, self).__init__()
+        self.device = device
+
         self.embedding_dim = embedding_dim
         self.lstm_dim = lstm_dim
-        self.n_classes = n_classes
 
         self.tanh = nn.Tanh()
         self.softmax = nn.Softmax(dim=-1)
@@ -27,9 +30,13 @@ class LSTMTagger(nn.Module):
         self.td_lstm = nn.LSTM(embedding_dim, lstm_dim, batch_first=True)
         self.alignment = nn.Linear(lstm_dim, 1)
         self.lstm = nn.LSTM(lstm_dim, lstm_dim // 4, batch_first=True, bidirectional=True)
-        self.classifier = nn.LSTM(lstm_dim // 2, self.n_classes, batch_first=True)
 
-    def forward(self, x):
+        self.positional_term = torch.exp(torch.arange(0, lstm_dim, 2).float() * (-np.log(10000.0) / lstm_dim))
+
+        self.classifier = nn.LSTM(lstm_dim // 2, 2, batch_first=True)
+
+
+    def forward(self, x, offset, max_len):
         # get tensor dimensions
         batch, sentences, words = x.size()
 
@@ -49,9 +56,14 @@ class LSTMTagger(nn.Module):
         attention_vectors = torch.einsum("sa,sal->sl", attention, td_lstm_out)
         attention_vectors = attention_vectors.view(batch, sentences, self.lstm_dim)
 
+        # document-level positional encoding, refer to "Attention is all you need!"
+        positions = torch.arange(offset, offset + x.shape[1], dtype=torch.float).unsqueeze(1)
+        attention_vectors[0, :, 0::2] += torch.sin(positions * self.positional_term / max_len).to(self.device)
+        attention_vectors[0, :, 1::2] += torch.cos(positions * self.positional_term / max_len).to(self.device)
+
         # get last hidden state alternatively
         # td_lstm_out = td_lstm_out[:, -1, :]
-        # td_lstm_out = td.lstm_out.view(batch, sentences, self.lstm_dim)
+        # td_lstm_out = td_lstm_out.view(batch, sentences, self.lstm_dim)
 
         lstm_out, _ = self.lstm(attention_vectors)
 
@@ -59,19 +71,3 @@ class LSTMTagger(nn.Module):
 
         return classifier_out
 
-    def annotate(self, classes, tokenizer, text):
-        lines = text.split("\n")
-
-        tokenized = [x.ids for x in tokenizer.encode_batch(lines)]
-
-        # padding
-        max_tokens = max(len(sentence) for sentence in tokenized)
-        for sentence in range(len(tokenized)):
-            for _ in range(max_tokens - len(tokenized[sentence])):
-                tokenized[sentence].insert(0, 0)
-
-        predictions = self.forward(torch.tensor([tokenized]))
-        predictions = torch.argmax(predictions[0], -1)
-        predictions = [classes[prediction.item()] for prediction in predictions]
-
-        return zip(lines, predictions)

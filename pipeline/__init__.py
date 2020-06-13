@@ -76,14 +76,16 @@ class PipelineSingleprocess:
     @staticmethod
     def factory(data_directory: str,
                 pre_abstract_model_dir: str = "models/pre_abstract/model",
+                references_model_dir: str = "models/references/model",
+                device: str = "cpu",
                 **kwargs):
         return PipelineSingleprocess(
             pipeline=[
                 FileParser(data_directory),
-                PreAbstractParser(pre_abstract_model_dir),
+                PreAbstractParser(pre_abstract_model_dir, device=device),
                 # AuthorParser(ner_model),
                 EmailParser(),
-                ReferenceParser(),
+                ReferenceParser(references_model_dir, device=device),
                 LocationParser(),
                 AcknowledgementParser(),
                 LanguageParser(),

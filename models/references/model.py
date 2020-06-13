@@ -5,10 +5,11 @@ import numpy as np
 
 class LSTMTagger(nn.Module):
     """
-        This model is used to annotate each line of text the paper.
-        The idea is to feed each line into the model and encode it through a single lstm to an attention-weighted hidden state,
-        then have a second lstm label each of these state vectors.
+        This model is used to annotate each line of text in the paper.
+        The idea is to feed the paper in chunks of lines into the model and encode the tokens of each line
+        with a single lstm to an attention-weighted hidden state.
         A positional encoding vector is added to the hidden states to represent the position in the document.
+        A second lstm then labels each of those state vectors.
     """
     def __init__(self, vocab_size: int, embedding_dim: int, lstm_dim: int, device):
         """

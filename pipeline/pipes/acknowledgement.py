@@ -43,7 +43,9 @@ class AcknowledgementParser(Target):
 
         document["entities"][Entity.ACKNOWLEDGEMENT].add(ack)
 
-        self.clean_text(document, ack)
+        document["text_cleaned"] = document["text_cleaned"][:mention.end()] + document["text_cleaned"][mention.end()+len(ack):]
+
+        # self.clean_text(document, ack)
 
         return document
 

@@ -17,14 +17,9 @@ from pdfminer.layout import LAParams, LTTextBox
 class FileParser(Target):
     def __init__(self,
                  data_directory,
-                 sentencizer_dir: str = os.path.abspath("models/sentencizer"),
                  conferences_file_path: str = os.path.abspath("pipeline/conferences.pkl")):
         super().__init__()
         self.data_directory = data_directory
-
-        self.sentencizer_dir = os.path.abspath(sentencizer_dir)
-        assert os.path.exists(self.sentencizer_dir), f"ner model directory '{self.sentencizer_dir}' does not exist"
-        self.sentencizer = spacy.load(self.sentencizer_dir)
 
         try:
             assert os.path.exists(conferences_file_path), f"conference data '{conferences_file_path}' does not exist"
@@ -60,7 +55,6 @@ class FileParser(Target):
             "text": document_text,
             "text_cleaned": document_text,
             "entities": defaultdict(set),
-            "sentences": self.get_sentences(document_text[abstract_end:]),
         }
 
     def get_document_name(self, document):
@@ -121,14 +115,6 @@ class FileParser(Target):
     def get_text(self, document_name):
         with open(f"{os.path.join(self.data_directory, 'txts', document_name)}.pdf.txt", "r") as file:
             return file.read()
-
-    def get_sentences(self, text):
-        try:
-            result = self.sentencizer(text)
-            return result.sents
-        except KeyError:
-            logging.error("cannot parse sentences")
-            return []
 
 
 class CsvWriter(Target):

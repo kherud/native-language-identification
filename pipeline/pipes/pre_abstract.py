@@ -39,7 +39,9 @@ class PreAbstractParser(Target):
                                                merges_file=join(self.model_dir, "merges.txt"),
                                                lowercase=self.model_config["lowercase"])
 
-        self.department_re = re.compile("(?:,\s*)?[^,]*Department[^,]*(?:,)", re.IGNORECASE)
+        self.noise_re = re.compile(r"[^A-Za-z ]")
+
+        self.department_re = re.compile(r"(?:,\s*)?[^,]*Department[^,]*(?:,)", re.IGNORECASE)
 
     def __call__(self, document):
         assert isinstance(document, dict), f"wrong input of type {type(document)} to author parser"
@@ -48,7 +50,9 @@ class PreAbstractParser(Target):
 
         keep_lines = []
         for line, label in zip(lines, labels):
-            if label == "other":
+            if "meta" in document and self.noise_re.sub("", line) == self.noise_re.sub("", document["meta"]["title"]):
+                keep_lines.append(line)
+            elif label == "other":
                 keep_lines.append(line)
             else:
                 self.create_annotation(document, line, label)
@@ -101,19 +105,18 @@ class PreAbstractParser(Target):
 
             try:
                 for author in document["meta"]["authors"]:
-                    mention = re.search("[\s\-]*".join(re.escape(name) for name in author.split()), line, re.IGNORECASE)
-                if mention:
-                    document["entities"][Entity.AUTHOR].add(line)
-                    continue
+                    if re.search("[\s\-]*".join(re.escape(name) for name in author.split()), line, re.IGNORECASE):
+                        mention = True
+                        document["entities"][Entity.AUTHOR].add(line)
 
                 for organization in document["meta"]["orgs"]:
-                    mention = re.search("[\s\-]*".join(re.escape(name) for name in organization["name"].split()), line, re.IGNORECASE)
-                if mention:
-                    document["entities"][Entity.INSTITUTION_COMPANY].add(line)
-                    continue
+                    if re.search("[\s\-]*".join(re.escape(name) for name in organization["name"].split()), line, re.IGNORECASE):
+                        mention = True
+                        document["entities"][Entity.INSTITUTION_COMPANY].add(line)
             except KeyError:
                 logging.error(f"conferences meta file misses key for {document['name']}")
 
-            keep_lines.append(line)
+            if not mention:
+                keep_lines.append(line)
 
         return keep_lines

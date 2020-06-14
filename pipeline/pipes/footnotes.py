@@ -15,13 +15,13 @@ class FootnoteParser(Target):
         noise_re += "|" + "\s*".join("REFERENCE") + "\s*S?\s*"
         noise_re += "|" + "\[\d+\]"
         self.noise_re = re.compile(noise_re)
-        self.noise_re2 = re.compile(r"[^A-Za-z\x7f-\xffÀ-ž\u0370-\u03FF\u0400-\u04FF,; ]", re.IGNORECASE)
-        self.and_re = re.compile(r"and|&|;", re.IGNORECASE)
         self.keyword_re = re.compile(r"acknowledges?\s(?:the\s)?support|was\s(?:\w{1,10}\s)?supported\sby")
 
         self.sentencizer_dir = os.path.abspath(sentencizer_dir)
         assert os.path.exists(self.sentencizer_dir), f"ner model directory '{self.sentencizer_dir}' does not exist"
         self.sentencizer = spacy.load(self.sentencizer_dir)
+
+        self.abstract_re = re.compile("\s*".join("ABSTRACT") + "|" + "\s*".join("Abstract"))
 
     def __call__(self, document):
         assert isinstance(document, dict), f"wrong input of type {type(document)} to location parser"
@@ -37,32 +37,43 @@ class FootnoteParser(Target):
         except KeyError:
             logging.error(f"meta data key missing in '{document['name']}'")
 
-        for authors in document["entities"][Entity.AUTHOR]:
-            authors = self.and_re.sub(",", authors)
-            authors = self.noise_re2.sub("", authors)
-            for author in authors.split(","):
-                if len(author) < 3:
-                    continue
-                key_words.add(author.strip())
-
         sentences = self.get_sentences(document)
         for sentence in sentences:
             if any(re.search(r"[\s\-]*".join(re.escape(k) for k in key_word.split()), sentence.text, re.IGNORECASE) for key_word in key_words) \
                     or self.keyword_re.search(sentence.text):
                 if self.noise_re.search(sentence.text):
                     continue
-
                 text = document["text_cleaned"][sentence.start_char:sentence.end_char]
                 document["entities"][Entity.FOOTNOTE].add(text)
 
-                self.clean_text(document, text)
+        for footnote in document["entities"][Entity.FOOTNOTE]:
+            self.clean_text(document, footnote)
 
         return document
 
     def get_sentences(self, document):
         try:
-            result = self.sentencizer(document["text_cleaned"])
-            return result.sents
+            abstract_start, abstract_end = self.detect_abstract(document)
+            return self.sentencizer(document["text_cleaned"][abstract_end:]).sents
         except KeyError:
             logging.error(f"cannot parse sentences of '{document['name']}'")
             return []
+
+    def detect_abstract(self, document):
+        abstract_mention = None
+        abstract_title_mentions = []
+        if "meta" in document:
+            abstract_title_mentions = self.abstract_re.findall(document["meta"]["title"])
+        if len(abstract_title_mentions) > 0:
+            abstract_mentions = list(self.abstract_re.finditer(document["text_cleaned"]))
+            if len(abstract_mentions) >= len(abstract_title_mentions):
+                abstract_mention = abstract_mentions[len(abstract_title_mentions)]
+        else:
+            abstract_mention = self.abstract_re.search(document["text_cleaned"])
+
+        if abstract_mention is None:
+            return 400, 400
+        else:
+            start = min(abstract_mention.start(), 1000)
+            end = min(abstract_mention.end(), 1000)
+            return start, end

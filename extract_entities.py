@@ -14,7 +14,7 @@ parser.add_argument("-p", "--processes",
                     help="amount of cpu cores used (defaults to all available)",
                     type=int)
 parser.add_argument("-gpu",
-                    help="activate hardware acceleration (every process uses its own model, take care of GPU memory!)",
+                    help="activate hardware acceleration (each process takes ~700mb GPU memory, take care!)",
                     action="store_true")
 parser.add_argument("-v", "--verbose",
                     help="print additional output (mainly for debugging)",

@@ -31,6 +31,7 @@ optional arguments:
 ### Example
 
 Make sure to put your files under `<data_directory>/pdfs` and `<data_directory>/txts` if you want to process a directory.
+
 ```
 # process every file in data/ cpu-based with all available cores
 python extract_entities.py -d data/

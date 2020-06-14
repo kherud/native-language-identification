@@ -5,7 +5,7 @@ from . import Target, Entity
 class EmailParser(Target):
     def __init__(self):
         super().__init__()
-        self.email_re = re.compile(r"\S+@\S+(?:\.\S+)+")
+        self.email_re = re.compile(r"\S+ ?@ ?\S+(?: ?\. ?\S+)+")
         self.email_re2 = re.compile(r"{{.+}}@\S+(?:\.\S+)+")
 
     def __call__(self, document):

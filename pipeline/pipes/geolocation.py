@@ -15,7 +15,7 @@ class LocationParser(Target):
         assert isinstance(document, dict), f"wrong input of type {type(document)} to location parser"
 
         geo = GeoText(document["text_cleaned"])
-        for mention in geo.countries:  # geo.cities + geo.nationalities:
+        for mention in geo.countries + geo.nationalities:  # geo.cities
             if mention.lower() in self.stop_words:
                 continue
             for match in re.finditer("[\s-]*".join(mention), document["text_cleaned"], re.IGNORECASE):

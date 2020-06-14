@@ -23,19 +23,23 @@ optional arguments:
                         data/pdfs/AAAI12-4.pdf
   -p PROCESSES, --processes PROCESSES
                         amount of cpu cores used (defaults to all available)
-  -gpu                  activate hardware acceleration (every process uses its
-                        own model, take care of GPU memory!)
+  -gpu                  activate hardware acceleration (each process takes 
+                        ~700mb GPU memory, take care!)
   -v, --verbose         print additional output (mainly for debugging)
 ```
 
 ### Example
 
+Make sure to put your files under `<data_directory>/pdfs` and `<data_directory>/txts` if you want to process a directory.
 ```
 # process every file in data/ cpu-based with all available cores
 python extract_entities.py -d data/
 
 # process every file in data/ hardware-accelerated with four cores
 python extract_entities.py -d data/ -p 4 -gpu
+
+# process single file with hardware acceleration
+python extract_entities.py -f data/pdfs/AAAI12-4.pdf -gpu
 ```
 
 ### In Code

@@ -36,9 +36,9 @@ class ReferenceParser(Target):
                                                lowercase=self.model_config["lowercase"])
 
         # self.space_re = re.compile(r"\s+")
-        self.refer_re = re.compile(r"([(\[](?:\w[^\d()\[\]]+\s[(\[]?[12][0-9]{3}[A-Za-z]?[(\[]?[;,\s]*)+[)\]])")
-        self.et_al_re = re.compile(r"[^\d\s]+\set\.?\s*al\.?,?\s+(?:[(\[][12][0-9]{3}[)\]])?")
-        self.and_re = re.compile(r"(?:[^\d\s]+,?\s+(?:(?:and)|&)\s+)+[^\d\s]+[,\s]*(?:[(\[][12][0-9]{3}[A-Za-z]?[)\]]|[12][0-9]{3}[A-Za-z]?)")
+        self.refer_re = re.compile(r"([(\[](\w[^\d()\[\]]+\s[(\[]?[12][0-9]{3}[A-Za-z]?[(\[]?[;,\s]*)+[)\]])")
+        self.et_al_re = re.compile(r"[^\d\s]+\set\.?\s*al\.?,?\s+([(\[][12][0-9]{3}[)\]])?")
+        self.and_re = re.compile(r"([^\d\s]+,?\s+((and)|&)\s+)+[^\d\s]+[,\s]*([(\[][12][0-9]{3}[A-Za-z]?[)\]]|[12][0-9]{3}[A-Za-z]?)")
         self.name_re = re.compile(r"[A-Z][^A-Z\d\s()\[\],;\.]+")
 
     def __call__(self, document):

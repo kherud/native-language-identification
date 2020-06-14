@@ -13,6 +13,7 @@ from pipeline.pipes.geolocation import LocationParser
 from pipeline.pipes.language import LanguageParser
 from pipeline.pipes.pre_abstract import PreAbstractParser
 from pipeline.pipes.reference import ReferenceParser
+from pipeline.pipes.review import ReviewerParser
 from multiprocessing import Process, Pipe, Lock, Manager, Queue, cpu_count
 from multiprocessing.connection import Connection
 
@@ -84,10 +85,11 @@ class PipelineSingleprocess:
                 FileParser(data_directory),
                 PreAbstractParser(pre_abstract_model_dir, device=device),
                 # AuthorParser(ner_model),
-                EmailParser(),
                 ReferenceParser(references_model_dir, device=device),
-                LocationParser(),
+                ReviewerParser(),
                 AcknowledgementParser(),
+                EmailParser(),
+                LocationParser(),
                 FootnoteParser(),
                 LanguageParser(),
                 CsvWriter(data_directory),

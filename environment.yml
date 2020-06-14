@@ -3,6 +3,8 @@ channels:
   - defaults
 dependencies:
   - python=3.7
+  - pip=20.0.2
+  - cudatoolkit=10.2
   - pip:
     - spacy==2.2.4
     - spacy_cld==0.1.0

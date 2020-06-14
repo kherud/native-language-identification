@@ -5,7 +5,7 @@ from . import Target, Entity
 class ReviewerParser(Target):
     def __init__(self):
         super().__init__()
-        self.mention_re = re.compile(r"Reviewed\s*by\n([^A-Za-z]\n)?[^\n]+\n([^A-Za-z]\n)?[^\n]+")
+        self.mention_re = re.compile(r"Reviewed\s*by\n(?:[^A-Za-z]\n)?[^\n]+\n(?:[^A-Za-z]\n)?[^\n]+")
 
     def __call__(self, document):
         assert isinstance(document, dict), f"wrong input of type {type(document)} to location parser"

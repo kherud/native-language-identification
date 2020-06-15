@@ -12,7 +12,7 @@ Move data to `data/pdfs` and `data/txts`.
 Loading the pipeline may take a while before processing begins.
 
 ```
-extract_entities.py [-h] [-d DIRECTORY] [-f FILE] [-p PROCESSES] [-gpu] [-v]
+clean_text.py [-h] [-d DIRECTORY] [-f FILE] [-p PROCESSES] [-gpu] [-v]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -34,13 +34,13 @@ Make sure to put your files under `<data_directory>/pdfs` and `<data_directory>/
 
 ```
 # process every file in data/ cpu-based with all available cores
-python extract_entities.py -d data/
+python clean_text.py -d data/
 
 # process every file in data/ hardware-accelerated with four cores
-python extract_entities.py -d data/ -p 4 -gpu
+python clean_text.py -d data/ -p 4 -gpu
 
 # process single file with hardware acceleration
-python extract_entities.py -f data/pdfs/AAAI12-4.pdf -gpu
+python clean_text.py -f data/pdfs/AAAI12-4.pdf -gpu
 ```
 
 ### In Code

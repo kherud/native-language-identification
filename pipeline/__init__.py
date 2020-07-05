@@ -33,12 +33,9 @@ def process_with_pool(data_directory: str, **kwargs):
 
     assert os.path.exists(data_directory), f"'{data_directory}' does not exists"
 
-    pdfs_location = os.path.join(data_directory, "pdfs")
-    assert os.path.exists(pdfs_location), f"'{pdfs_location}' does not exists"
-
-    for document in glob.glob(f"{pdfs_location}/*.pdf"):
+    for document in glob.glob(f"{data_directory}/*.txt"):
         in_queue.put(document)
-    assert in_queue.qsize() > 0, f"no documents found in '{data_directory}/pdfs/'"
+    assert in_queue.qsize() > 0, f"no documents found in '{data_directory}'"
 
     lock = Lock()
     out_queue = Queue()

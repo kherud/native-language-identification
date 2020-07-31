@@ -1,0 +1,120 @@
+\documentclass[runningheads,a4paper,12pt]{uwsese}
+
+%ACHTUNG: Diesen Import für englische Arbeiten entfernen.
+\usepackage[ngerman]{babel}
+
+\usepackage[utf8]{inputenc}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\setcounter{tocdepth}{3}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{ragged2e}
+\usepackage{arydshln}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{multirow}
+\newcolumntype{P}[1]{>{\RaggedRight\hspace{0pt}}p{#1}}
+%\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+
+\usepackage{url}
+\urldef{\mailsa}\path|dozent.ls2.informatik@uni-wuerzburg.de| 
+\newcommand{\keywords}[1]{\par\addvspace\baselineskip
+\noindent\keywordname\enspace\ignorespaces#1}
+
+\begin{document}
+
+\mainmatter 
+
+% first the title is needed
+\title{Bearbeitungshinweise\\ Seminar Software Engineering}
+
+% a short form should be given in case it is too long for the running head
+\titlerunning{Bearbeitungshinweise Seminar Software Engineering}
+
+
+\author{Informatik LS2 Dozent}
+%
+\authorrunning{LS2 Dozent}
+% (feature abused for this document to repeat the title also on left hand pages)
+
+% the affiliations are given next
+\institute{University of W\"urzburg,
+Germany\\
+\mailsa\\
+}
+
+
+\toctitle{Interpolation based Modelling of Power and Performance}
+\tocauthor{J. von Kistowski and S. Kounevs}
+\maketitle
+
+
+\begin{abstract}
+	Hier kommt der Abstract hin. Der Abstract behandelt alle Unterpunkte, welche auch in der Introduction behandelt werden (s. Section~\ref{sub:intro}) und liefert damit eine Zusammenfassung über die Seminararbeit als Ganzes. Im Gegensatz zur Zusammenfassung ist der Abstract sehr kurz gehalten und hat ca. ein bis zwei Sätze pro Unterpunkt.
+\end{abstract}
+
+
+\section{Introduction}
+
+\section{Methodik}
+\subsection{Task 2: Klassifikation}
+
+\begin{itemize}
+\item $s$: Zeilen im Dokument,
+\item $t$: Tokens pro Zeile (Padding gemäß längster Zeile)
+\item $d$: Dimension des Modells (z.\,B. 150)
+\item $c$: Anzahl Klassen
+\end{itemize}
+
+\begin{align}
+X_{ztd} &= \text{LSTM}_t(X) \\
+A_{zt} &= \text{softmax}_t\left(\sum_d X_{ztd} W_{d}^1\right) \\
+X_{zd} &= \sum_t X_{ztd} A_{zt} \\
+A_{z} &= \text{softmax}_z\left(\sum_d X_{zd} W_{d}^2\right) \\
+X_{d} &= \sum_z X_{zd} A_z \\
+Y_c &= X_d W_{dc}
+\end{align}
+
+
+\begin{equation}
+W_{L,C_i} = \left(\frac{|C_{\max}|}{|C_i|}\right)^\alpha,\;\;\;\alpha = 0.6
+\end{equation}
+
+% Please add the following required packages to your document preamble:
+% \usepackage{booktabs}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=\textwidth]{img/attention-visualized.png}
+\end{figure}
+
+\begin{table}[]
+\centering
+\begin{tabular}{@{}clllllllllllll@{}}
+\multicolumn{1}{l}{}       & \multicolumn{13}{c}{Voraussage}                                   \\ \cmidrule(l){2-14} 
+\multicolumn{1}{l}{}       &     & AU & CA & CN  & FR & DE & IN & IL & JP & SG & CH & UK & USA \\ \cmidrule(l){2-14} 
+\multirow{11}{*}{\rotatebox[origin=c]{90}{Wahrheit}} & AU  & 6  &    & 8   &    & 1  &    &    &    &    &    & 7  & 6   \\
+                           & CA  & 1  & 8  & 4   &    &    &    &    & 2  &    & 1  & 7  & 32  \\
+                           & CN  & 1  & 1  & 188 &    & 1  &    &    & 2  & 1  &    & 1  & 17  \\
+                           & FR  &    &    & 1   & 36 & 3  &    &    & 1  &    &    & 2  & 4   \\
+                           & DE  &   & 2  & 2   & 2  & 47 &    &    & 1  &    &    & 12 & 11  \\
+                           & IN  &    &    & 1   &    &    & 6  &    &    &    &    & 2  & 11  \\
+                           & IL  &    & 1  &     & 1  &    &    & 14 & 2  &    &    &    & 10  \\
+                           & JP  &    &    & 2   & 1  &    &    &    & 45 &    & 1  & 1  & 6   \\
+                           & SG  &    & 1  & 6   &    &    &    &    &    & 9  &    & 2  & 8   \\
+                           & CH  &    &    & 3   &    & 7  &    &    &    &    & 4  & 4  & 8   \\
+                           & UK  & 3  & 5  & 1   & 6  & 1  & 2  &    & 1  &    & 2  & 66 & 18  \\
+                           & USA & 3  & 13 & 38  & 17 & 6  & 1  & 2  & 8  & 2  & 3  & 32 & 746 \\ \cmidrule(l){2-14} 
+\end{tabular}
+\caption{Konfusionsmatrix der Klassen Australien (AU), Canada (CA), China (CN), Frankreich(FR), Deutschland (DE), Indien (IN), Israel (IL), Japan (JP), Singapur (SG), Schweitz (CH), Großbritannien (UK), Amerika (USA)}
+\end{table}
+
+
+
+%\newpage
+\bibliographystyle{splncs03}
+\bibliography{sesebib}
+
+\end{document}

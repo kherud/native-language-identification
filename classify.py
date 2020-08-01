@@ -5,16 +5,13 @@ from pipeline import Pipeline, process_with_pool
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--directory",
-                    help="data directory to process, e.g. data/txts/",
+                    help="data directory to process, e.g. data/txts_cleaned/",
                     type=str)
 parser.add_argument("-f", "--file",
-                    help="single text file to process, e.g. data/txts/AAAI12-4.txt",
+                    help="single pdf file to process, e.g. data/txts_cleaned/AAAI12-0.txt",
                     type=str)
-parser.add_argument("-p", "--processes",
-                    help="amount of cpu cores used (defaults to all available)",
-                    type=int)
 parser.add_argument("-gpu",
-                    help="activate hardware acceleration (each process takes ~700mb GPU memory, take care!)",
+                    help="activate hardware acceleration (this may require up to 16GB of GPU memory, take care!)",
                     action="store_true")
 parser.add_argument("-v", "--verbose",
                     help="print additional output (mainly for debugging)",
@@ -39,20 +36,20 @@ if args.file:
     assert exists(args.file), f"'{args.file}' does not exist"
 
     logging.info(f"loading pipeline for file '{args.file}'")
-    pipeline = Pipeline.preprocessing_factory(data_directory)
+    pipeline = Pipeline.classification_factory(data_directory)
     document = pipeline(args.file)
-    print("{0:<25}{1}".format("Label", "Text"))
+    print("{0:<25}{1}".format("Name", "Prediction"))
     print("-" * 50)
-    for key, value in zip(document["result"]["Label"], document["result"]["Text"]):
-        print(f"{key:<25}{value}")
-    logging.info(f"finished processing file '{args.file}'")
+    print(f"{document['name']:<25}{document['prediction']}")
+    logging.info(f"finished processing '{args.file}'")
 
 if args.directory:
     assert exists(args.directory), f"data directory '{args.directory}' does not exist"
 
     logging.info(f"spawning pool for directory '{args.directory}'")
     process_with_pool(args.directory,
-                      pipeline=Pipeline.preprocessing_factory,
-                      processes=args.processes,
+                      pipeline=Pipeline.classification_factory,
+                      processes=1,
                       device=device)
     logging.info(f"finished processing directory '{args.directory}'")
+

@@ -8,7 +8,8 @@ conda activate prjak
 
 ## Run
 
-Move data to `data/pdfs` and `data/txts`.
+### Preprocessing
+
 Loading the pipeline may take a while before processing begins.
 
 ```
@@ -17,50 +18,43 @@ clean_text.py [-h] [-d DIRECTORY] [-f FILE] [-p PROCESSES] [-gpu] [-v]
 optional arguments:
   -h, --help            show this help message and exit
   -d DIRECTORY, --directory DIRECTORY
-                        data directory to process, e.g. data/ (expected to
-                        contain pdfs/ and txts/)
-  -f FILE, --file FILE  single pdf file to process, e.g.
-                        data/pdfs/AAAI12-4.pdf
+                        data directory to process, e.g. data/txts/
+  -f FILE, --file FILE  single text file to process, e.g. data/txts/AAAI12-4.txt
   -p PROCESSES, --processes PROCESSES
                         amount of cpu cores used (defaults to all available)
-  -gpu                  activate hardware acceleration (each process takes 
-                        ~700mb GPU memory, take care!)
+  -gpu                  activate hardware acceleration (each process takes ~700mb GPU memory, take care!)
   -v, --verbose         print additional output (mainly for debugging)
 ```
 
-### Example
-
-Make sure to put your files under `<data_directory>/pdfs` and `<data_directory>/txts` if you want to process a directory.
+### Classification
 
 ```
-# process every file in data/ cpu-based with all available cores
-python clean_text.py -d data/
+classify.py [-h] [-d DIRECTORY] [-f FILE] [-gpu] [-v]
 
-# process every file in data/ hardware-accelerated with four cores
-python clean_text.py -d data/ -p 4 -gpu
+optional arguments:
+  -h, --help            show this help message and exit
+  -d DIRECTORY, --directory DIRECTORY
+                        data directory to process, e.g. data/txts_cleaned/
+  -f FILE, --file FILE  single pdf file to process, e.g. data/txts_cleaned/AAAI12-0.txt
+  -gpu                  activate hardware acceleration (this may require up to 16GB of GPU memory, take care!)
+  -v, --verbose         print additional output (mainly for debugging)
+```
+
+## Example Usage
+
+```
+# process every file in data/txts/ cpu-based with all available cores
+python clean_text.py -d data/txts/
+
+# process every file in data/txts/ hardware-accelerated with four cores
+python clean_text.py -d data/txts/ -p 4 -gpu
 
 # process single file with hardware acceleration
-python clean_text.py -f data/pdfs/AAAI12-4.pdf -gpu
-```
+python clean_text.py -f data/txts/AAAI12-4.txt -gpu
 
-### In Code
-Use `PipelineSingleprocess` for single files:
+# classify single file
+python classify.py -f data/txts_cleaned/AAAI12-4.txt
 
-```
-pipeline = PipelineSingleprocess.factory(data_directory)
-# custom pipeline
-pipeline = PipelineSingleprocess(pipeline=[
-                                           # ...
-                                           ])
-print(pipeline(file_path))
-```
-
-To process a whole directory there is a wrapper `process_with_pool` to spawn a worker pool:
-
-```
-process_with_pool(data_directory)
-# custom pipeline
-process_with_pool(data_directory, pipeline=[
-                                            # ...
-                                            ])
+# classify every file in data/txts_cleaned using hardware acceleration
+python classify.py -d data/txts_cleaned -gpu
 ```

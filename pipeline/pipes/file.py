@@ -7,9 +7,29 @@ from . import Target
 from collections import defaultdict
 
 
+class FileReader(Target):
+    def __init__(self,
+                 data_directory: str):
+        super().__init__()
+        self.data_directory = data_directory
+
+    def __call__(self, document):
+        assert type(document) == str, f"input to file reader has wrong type: {type(document)}"
+        assert document.endswith(".txt"), "invalid file path / type, expected .txt"
+
+        document_name = document.split("/")[-1].split(".")[0]
+
+        with open(document, "r") as file:
+            text = file.read()
+
+        return {
+            "name": document_name,
+            "text": text
+        }
+
 class FileParser(Target):
     def __init__(self,
-                 data_directory,
+                 data_directory: str,
                  conferences_file_path: str = os.path.abspath("pipeline/conferences.pkl")):
         super().__init__()
         self.data_directory = data_directory
@@ -86,7 +106,7 @@ class CsvWriter(Target):
             os.makedirs(self.output_path)
 
     def __call__(self, document):
-        assert type(document) == dict, f"input to file parser has wrong type: {type(document)}"
+        assert type(document) == dict, f"input to csv writer has wrong type: {type(document)}"
 
         result = {
             "Text": [],
@@ -107,6 +127,27 @@ class CsvWriter(Target):
         return document
 
 
+class PredictionWriter(Target):
+    def __init__(self, data_directory, out_file="predictions.csv"):
+        super().__init__()
+        self.output_path = os.path.join(os.path.dirname(data_directory), out_file)
+        self.output = open(self.output_path, "w")
+        self.output.write("Name,Prediction\n")
+
+    def __del__(self):
+        self.output.close()
+
+    def __call__(self, document):
+        assert type(document) == dict, f"input to prediction writer has wrong type: {type(document)}"
+
+        self.output.write(document["name"])
+        self.output.write(",")
+        self.output.write(document["prediction"])
+        self.output.write("\n")
+
+        return document
+
+
 class TextWriter(Target):
     def __init__(self, data_directory, output_dir="txts_cleaned"):
         super().__init__()
@@ -116,7 +157,7 @@ class TextWriter(Target):
             os.makedirs(self.output_path)
 
     def __call__(self, document):
-        assert type(document) == dict, f"input to file parser has wrong type: {type(document)}"
+        assert type(document) == dict, f"input to text writer has wrong type: {type(document)}"
 
         file_path = os.path.join(self.output_path, document["name"] + ".txt")
 

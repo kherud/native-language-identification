@@ -9,10 +9,9 @@ dependencies:
     - spacy==2.2.4
     - spacy_cld==0.1.0
     - tqdm==4.46.0
-    - pdfminer==20191125
     - pandas==1.0.3
     - numpy==1.18.4
     - geotext==0.4.0
-    - torch==1.5.0
+    - torch==1.6.0
     - tokenizers==0.7.0
     - readchar==2.0.1

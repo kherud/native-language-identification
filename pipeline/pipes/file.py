@@ -1,17 +1,10 @@
 import os
 import re
-import spacy
 import logging
 import pickle
 import pandas as pd
 from . import Target
 from collections import defaultdict
-from pdfminer.pdfdocument import PDFDocument
-from pdfminer.pdfpage import PDFPage
-from pdfminer.pdfparser import PDFParser
-from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
-from pdfminer.converter import PDFPageAggregator
-from pdfminer.layout import LAParams, LTTextBox
 
 
 class FileParser(Target):
@@ -33,10 +26,10 @@ class FileParser(Target):
 
     def __call__(self, document):
         assert type(document) == str, f"input to file parser has wrong type: {type(document)}"
-        assert document.endswith(".pdf") or document.endswith(".txt"), "invalid file path / type"
+        assert document.endswith(".txt"), "invalid file path / type, expected .txt"
 
         document_name = self.get_document_name(document)
-        document_text = self.get_text(document_name)
+        document_text = self.get_text(document)
 
         if document_name in self.conferences:
             meta = self.conferences[document_name]
@@ -58,33 +51,7 @@ class FileParser(Target):
         }
 
     def get_document_name(self, document):
-        file_name = document.split("/")[-1]
-        return file_name.replace(".pdf", "").replace(".txt", "")
-
-    def get_pdf_structure(self, document_name):
-        with open(f"{os.path.join(self.data_directory, 'pdfs', document_name)}.pdf", "rb") as file:
-            parser = PDFParser(file)
-            try:
-                doc = PDFDocument(parser)
-                rsrcmgr = PDFResourceManager()
-                laparams = LAParams()
-                device = PDFPageAggregator(rsrcmgr, laparams=laparams)
-                interpreter = PDFPageInterpreter(rsrcmgr, device)
-            except:
-                logging.error(f"cannot parse pdf structure of '{document_name}'")
-                return {}
-
-            structure = {}
-            for index, page in enumerate(PDFPage.create_pages(doc)):
-                try:
-                    interpreter.process_page(page)
-                    layout = device.get_result()
-                    structure[f"{index}_{type(page).__name__}"] = self.parse_layout(layout)
-                except:
-                    logging.error(f"cannot parse page {index+1} of '{document_name}.pdf'")
-                    structure[f"{index}_{type(page).__name__}"] = ""
-
-        return structure
+        return document.split("/")[-1].split(".")[0]
 
     def detect_abstract(self, text, meta):
         abstract_mention = None
@@ -105,22 +72,15 @@ class FileParser(Target):
             end = min(abstract_mention.end(), 2500)
             return start, end  # min due to error tolerance
 
-    def parse_layout(self, layout):
-        if not isinstance(layout, LTTextBox):
-            return {f"{index}_{type(obj).__name__}": self.parse_layout(obj)
-                    for index, obj in enumerate(layout)
-                    if hasattr(obj, "__iter__")}
-        return layout.get_text()
-
-    def get_text(self, document_name):
-        with open(f"{os.path.join(self.data_directory, 'txts', document_name)}.pdf.txt", "r") as file:
+    def get_text(self, document_path):
+        with open(document_path, "r") as file:
             return file.read()
 
 
 class CsvWriter(Target):
     def __init__(self, data_directory, output_dir="csvs"):
         super().__init__()
-        self.output_path = os.path.join(data_directory, output_dir)
+        self.output_path = os.path.join(os.path.dirname(data_directory), output_dir)
 
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)
@@ -150,7 +110,7 @@ class CsvWriter(Target):
 class TextWriter(Target):
     def __init__(self, data_directory, output_dir="txts_cleaned"):
         super().__init__()
-        self.output_path = os.path.join(data_directory, output_dir)
+        self.output_path = os.path.join(os.path.dirname(data_directory), output_dir)
 
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)

@@ -46,7 +46,11 @@ class PreAbstractParser(Target):
     def __call__(self, document):
         assert isinstance(document, dict), f"wrong input of type {type(document)} to author parser"
 
-        lines, labels = self.annotate_lines(document["text"][:document["abstract_start"]])
+        try:
+            lines, labels = self.annotate_lines(document["text"][:document["abstract_start"]])
+        except RuntimeError:
+            logging.error(f"could not parse pre abstract of {document['name']}")
+            return document
 
         keep_lines = []
         for line, label in zip(lines, labels):

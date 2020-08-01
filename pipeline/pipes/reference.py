@@ -1,6 +1,7 @@
 import re
 import json
 import torch
+import logging
 from . import Target, Entity
 from itertools import combinations
 from os.path import abspath, exists, join
@@ -44,7 +45,11 @@ class ReferenceParser(Target):
     def __call__(self, document):
         assert isinstance(document, dict), f"wrong input of type {type(document)} to reference extractor"
 
-        self.find_reference_blocks(document)
+        try:
+            self.find_reference_blocks(document)
+        except RuntimeError:
+            logging.error(f"could not parse reference blocks of {document['name']}")
+
         text_references = self.find_text_references(document)
 
         # remove references from text, sort to match longest first

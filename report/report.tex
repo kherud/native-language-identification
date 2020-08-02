@@ -1,80 +1,108 @@
-\documentclass[runningheads,a4paper,12pt]{uwsese}
-
-%ACHTUNG: Diesen Import für englische Arbeiten entfernen.
-\usepackage[ngerman]{babel}
+\documentclass[bachelor,german]{info1thesis}
 
 \usepackage[utf8]{inputenc}
-\usepackage{amssymb}
-\usepackage{amsmath}
-\setcounter{tocdepth}{3}
-\usepackage{graphicx}
-\usepackage{array}
-\usepackage{ragged2e}
-\usepackage{arydshln}
-\usepackage{xcolor}
+%\usepackage[T1]{fontenc}
+%\usepackage{fontspec}
+%\usepackage{lmodern} TODO: braucht man das?
+
+\usepackage{tabularx}
+\usepackage{ltablex}
+
+\usepackage{path}
+\usepackage{color}
 \usepackage{booktabs}
 \usepackage{multirow}
-\newcolumntype{P}[1]{>{\RaggedRight\hspace{0pt}}p{#1}}
-%\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+%\usepackage[disable,colorinlistoftodos]{luatodonotes}
 
 
-\usepackage{url}
-\urldef{\mailsa}\path|dozent.ls2.informatik@uni-wuerzburg.de| 
-\newcommand{\keywords}[1]{\par\addvspace\baselineskip
-\noindent\keywordname\enspace\ignorespaces#1}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Titelseite -- hier Titel und Autorennamen eintragen
+\title{Machine Learning for Natural Language Processing} % Geben Sie hier den Titel Ihrer Arbeit an.
+\subtitle{am Lehrstuhl für Informatik X}
+\author{Konstantin Herud\and Thomas Schaffroth\and Maximilian Meißner} % Geben Sie Ihren Namen an.
+%\date{Eingereicht am \abgabedatum}
+\titlehead{Julius-Maximilians-Universität Würzburg\\
+Institut für Informatik\\
+Lehrstuhl für Informatik X\\
+Data Science}
+\supervisors{Prof. Dr. Andreas Hotho\and Daniel Schlör\and Albin Zehe\and Konstantin Kobs\and Tobias Koopmann}
 
 \begin{document}
-
-\mainmatter 
-
-% first the title is needed
-\title{Bearbeitungshinweise\\ Seminar Software Engineering}
-
-% a short form should be given in case it is too long for the running head
-\titlerunning{Bearbeitungshinweise Seminar Software Engineering}
-
-
-\author{Informatik LS2 Dozent}
-%
-\authorrunning{LS2 Dozent}
-% (feature abused for this document to repeat the title also on left hand pages)
-
-% the affiliations are given next
-\institute{University of W\"urzburg,
-Germany\\
-\mailsa\\
-}
-
-
-\toctitle{Interpolation based Modelling of Power and Performance}
-\tocauthor{J. von Kistowski and S. Kounevs}
-\maketitle
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%% Bitte nur ab hier Änderungen vornehmen %%%%%%%%%%%%%%%%%%%%%
 
 \begin{abstract}
-	Hier kommt der Abstract hin. Der Abstract behandelt alle Unterpunkte, welche auch in der Introduction behandelt werden (s. Section~\ref{sub:intro}) und liefert damit eine Zusammenfassung über die Seminararbeit als Ganzes. Im Gegensatz zur Zusammenfassung ist der Abstract sehr kurz gehalten und hat ca. ein bis zwei Sätze pro Unterpunkt.
+    Dieses Dokument soll Studenten an unserem Lehrstuhl bei der Erstellung
+    ihrer Abschlussarbeit unterstützen.
+    Wir zeigen eine beispielhafte Gliederung einer Arbeit und beschreiben
+    die Inhalten der einzelnen Kapitel.
+    Zusätzlich geben wir an vielen Stellen auch Hinweise zur Benutzung von
+    \LaTeX\ für die Erstellung der Arbeit.
+    Im Anhang~\ref{appendix:orga} geben wir ein paar Hinweise zum Ablauf der
+    Betreuung von Abschlussarbeiten an unserem Lehrstuhl.
+
+    \paragraph{Zur Handhabung dieses Pakets.}
+    In diesem Paket sind Vorlagen für verschiedene Dokumenttypen enthalten, die
+    sie als Ausgangspunkt für ihre Arbeit verwenden können.
+    Es gibt jeweils Vorlagen für deutsche und englische Arbeiten.
+    \begin{itemize}
+        \item \verb+template_thesis_de.tex+, \verb+template_thesis_en.tex+:
+            Vorlage für Bachelorarbeit bzw. Masterarbeit
+        \item \verb+template_seminar_de.tex+, \verb+template_seminar_en.tex+:
+            Vorlage für Seminarausarbeitungen und Praktikumsberichte
+    \end{itemize}
+    Der Quelltext zu diesem Leitfaden ist ebenfalls im Paket enthalten.
+    Diesen können Sie als praktisches Beispiel dafür verwenden, wie diese
+    Dokumentenklasse angewandt wird.
+
+    \paragraph{Inhalt der Zusammenfassung.}
+    Schreiben Sie hier eine Zusammenfassung der Arbeit, vergleichbar mit dem Abstract auf wissenschaftlichen Papers.
+    Sie dient dem Leser dazu, einen groben Überblick über die Inhalte zu gewinnen (Problemstellung, verwendeter Lösungsansatz, ggf.\ experimentelle Ergebnisse, gewonnene Erkentnisse).
+    Der Umfang soll ca.\ eine halbe Seite betragen.
+    Für Seminararbeiten ist diese Zusammenfassung nicht erforderlich.
+    
+    \emph{Achtung:} Bei Arbeiten auf Englisch fordern die
+    Prüfungsordnungen, dass es eine deutsche Zusammenfassung gibt.
+    Schreiben Sie in diesem Fall eine englische \emph{und} eine deutsche Zusammenfassung (mit dem gleichen Inhalt).
+    Die passenden \LaTeX-Befehle dafür finden Sie in den englischsprachigen
+    Vorlagen.
+
+    \paragraph{WARNUNG:} 
+    Die vorliegende Version des Leitfadens ist eine \textcolor{red}{Vorabversion}, die noch nicht vollständig ist.
+    Sie bezieht sich größtenteils auf die Ausarbeitung von Bachelor- und Masterarbeiten; Seminararbeiten unterscheiden sich davon etwas in Aufbau und Inhalt.
+
+%    \vspace{3em}
+%    \textbf{TODOs für die Titelseite:}
+%    \todo{Soll der Name des Lehrstuhls für englische Arbeiten übersetzt werden?}
 \end{abstract}
 
+\thesistableofcontents
 
-\section{Introduction}
 
-\section{Methodik}
-\subsection{Task 2: Klassifikation}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Methodik}
+\section{Task 2: Klassifikation}
 
 \begin{itemize}
-\item $s$: Zeilen im Dokument,
-\item $t$: Tokens pro Zeile (Padding gemäß längster Zeile)
+\item $z$: Zeilen im Dokument
+\item $t$: Tokens pro Zeile (Padding kürzerer Zeilen)
 \item $d$: Dimension des Modells (z.\,B. 150)
 \item $c$: Anzahl Klassen
 \end{itemize}
 
 \begin{align}
-X_{ztd} &= \text{LSTM}_t(X) \\
-A_{zt} &= \text{softmax}_t\left(\sum_d X_{ztd} W_{d}^1\right) \\
-X_{zd} &= \sum_t X_{ztd} A_{zt} \\
-A_{z} &= \text{softmax}_z\left(\sum_d X_{zd} W_{d}^2\right) \\
-X_{d} &= \sum_z X_{zd} A_z \\
-Y_c &= X_d W_{dc}
+Y_{ztd} &= \text{LSTM}_t(X_{ztd}) \\
+A_{zt} &= \text{softmax}_t\left(\sum_d Y_{ztd} W_{d}^1\right) \\
+Y_{zd} &= \sum_t Y_{ztd} A_{zt} \\
+A_{z} &= \text{softmax}_z\left(\sum_d Y_{zd} W_{d}^2\right) \\
+Y_{d} &= \sum_z Y_{zd} A_z \\
+Y_c &= Y_d W_{dc}^3
 \end{align}
 
 
@@ -92,7 +120,8 @@ W_{L,C_i} = \left(\frac{|C_{\max}|}{|C_i|}\right)^\alpha,\;\;\;\alpha = 0.6
 
 \begin{table}[]
 \centering
-\begin{tabular}{@{}clllllllllllll@{}}
+%\scalebox{1.3}{
+\begin{tabular}{@{}clrrrrrrrrrrrr@{}}
 \multicolumn{1}{l}{}       & \multicolumn{13}{c}{Voraussage}                                   \\ \cmidrule(l){2-14} 
 \multicolumn{1}{l}{}       &     & AU & CA & CN  & FR & DE & IN & IL & JP & SG & CH & UK & USA \\ \cmidrule(l){2-14} 
 \multirow{11}{*}{\rotatebox[origin=c]{90}{Wahrheit}} & AU  & 6  &    & 8   &    & 1  &    &    &    &    &    & 7  & 6   \\
@@ -108,13 +137,26 @@ W_{L,C_i} = \left(\frac{|C_{\max}|}{|C_i|}\right)^\alpha,\;\;\;\alpha = 0.6
                            & UK  & 3  & 5  & 1   & 6  & 1  & 2  &    & 1  &    & 2  & 66 & 18  \\
                            & USA & 3  & 13 & 38  & 17 & 6  & 1  & 2  & 8  & 2  & 3  & 32 & 746 \\ \cmidrule(l){2-14} 
 \end{tabular}
-\caption{Konfusionsmatrix der Klassen Australien (AU), Canada (CA), China (CN), Frankreich(FR), Deutschland (DE), Indien (IN), Israel (IL), Japan (JP), Singapur (SG), Schweitz (CH), Großbritannien (UK), Amerika (USA)}
+%}
+\caption{Konfusionsmatrix der Klassen Australien (AU), Canada (CA), China (CN), Frankreich(FR), Deutschland (DE), Indien (IN), Israel (IL), Japan (JP), Singapur (SG), Schweitz (CH), Großbritannien (UK), Amerika (USA). Leere Zellen implizieren Nullen.}
 \end{table}
 
 
 
-%\newpage
-\bibliographystyle{splncs03}
-\bibliography{sesebib}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\thesisbibliography
+\bibliography{report}
+
+
+
+\appendix
+
+
+\chapter{Formelles/LaTeX}
+
+
+%\clearpage
+%\pdfbookmark[0]{ToDo-Liste}{todos}
+%\listoftodos
 
 \end{document}

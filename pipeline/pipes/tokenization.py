@@ -1,16 +1,22 @@
 import re
 import string
+from os.path import exists, join
 from typing import Union
-from tokenizers.implementations import BaseTokenizer
+from tokenizers import ByteLevelBPETokenizer
 from . import Target
 
 
-class Tokenization(Target):
-    def __init__(self, tokenizer: BaseTokenizer,
+class BPETokenization(Target):
+    def __init__(self, tokenizer_dir: str,
                  max_line_length: Union[int, None] = 50,
                  padding_id: int = 0):
         super().__init__()
-        self.tokenizer = tokenizer
+        assert exists(join(tokenizer_dir, "vocab.json")), f"vocab.json file missing in '{tokenizer_dir}'"
+        assert exists(join(tokenizer_dir, "merges.txt")), f"merges.txt file missing in '{tokenizer_dir}'"
+
+        self.tokenizer = ByteLevelBPETokenizer(vocab_file=join(tokenizer_dir, "vocab.json"),
+                                               merges_file=join(tokenizer_dir, "merges.txt"))
+
         self.max_line_length = max_line_length
         self.padding_id = padding_id
         self.char_re = re.compile(rf"[^{string.printable}]")
@@ -35,5 +41,3 @@ class Tokenization(Target):
         document["input_ids"] = encoded_lines
 
         return document
-
-

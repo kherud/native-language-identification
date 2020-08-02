@@ -36,7 +36,7 @@ class LSTMClassification(Target):
                           hidden_dim=self.model_config["hidden_dim"]).to(self.device)
         weights = torch.load(join(self.model_dir, "weights.pt"), map_location=device)
         self.model.load_state_dict(weights)
-        self.model.eval()
+        self.model = self.model.eval()
 
     def __call__(self, document):
         assert isinstance(document, dict), f"wrong input of type {type(document)} to classifier"

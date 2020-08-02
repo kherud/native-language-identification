@@ -15,9 +15,8 @@ from pipeline.pipes.language import LanguageParser
 from pipeline.pipes.pre_abstract import PreAbstractParser
 from pipeline.pipes.reference import ReferenceParser
 from pipeline.pipes.review import ReviewerParser
-from pipeline.pipes.tokenization import Tokenization
+from pipeline.pipes.tokenization import BPETokenization
 from multiprocessing import Process, Lock, Queue, cpu_count
-from tokenizers import ByteLevelBPETokenizer
 
 
 def parallel(pipeline: Union[Callable, "Pipeline"],
@@ -114,12 +113,10 @@ class Pipeline:
                                tokenizer_dir: str = "models/classification/tokenizer",
                                device: str = "cpu",
                                **kwargs):
-        tokenizer = ByteLevelBPETokenizer(vocab_file=os.path.join(tokenizer_dir, "vocab.json"),
-                                          merges_file=os.path.join(tokenizer_dir, "merges.txt"))
         return Pipeline(
             pipeline=[
                 FileReader(data_directory),
-                Tokenization(tokenizer),
+                BPETokenization(tokenizer_dir),
                 LSTMClassification(classifier_dir, device=device),
                 PredictionWriter(data_directory),
             ],

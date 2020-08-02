@@ -26,7 +26,7 @@
 Institut für Informatik\\
 Lehrstuhl für Informatik X\\
 Data Science}
-\supervisors{Prof. Dr. Andreas Hotho\and Daniel Schlör\and Albin Zehe\and Konstantin Kobs\and Tobias Koopmann}
+\supervisors{Daniel Schlör\and Albin Zehe\and Konstantin Kobs\and Tobias Koopmann} %Prof. Dr. Andreas Hotho\and
 
 \begin{document}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -87,22 +87,51 @@ Data Science}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \chapter{Methodik}
-\section{Task 2: Klassifikation}
+\textbf{Konstantin Herud} \\
+
+\section{Task 1: Dataset Preparation}
+
+Da verschiedene Informationen das Herkunftsland von Autoren entweder direkt oder indirekt preisgeben, müssen diese aus der Datenbasis entfernt werden. Die Zielsetzung sieht hierbei vor
+Namen der Autoren,
+E-Mails,
+Institutionen und Firmen,
+Herkunftsländer,
+Förderungen und Danksagungen,
+Persönliche Daten
+sowie Referenzen
+zu entfernen.
+Referenzen sind beispielsweise indirekte Hinweise, weil Arbeitsgruppen der gleichen Herkunft und somit dem selben Fachgebiet die selbe Literatur referenzieren. \\
+Da diese Aufgabe essentieller Bestandteil der Validität späterer Ergebnisse ist, wurde eine mehrstufige Daten-Pipeline entwickelt, um alle Informationen bestmöglich aus den Texten zu entfernen.
+
+\paragraph{Textextraktion} Im ersten Schritt muss der rohe Text der Dokumente eingelesen werden. Die Daten liegen sowohl in PDF- als auch in Textform vor, wobei letztere durch das Befehlszeilenprogramm \textit{pdftotext} erstellt wurde und somit bereits Potenzial für Fehler bietet. Ursprünglich wurde deshalb ein Ansatz mit dem Werkzeug \textit{pdfminer} verfolgt, um den Text der Dokumente selbstständig zu extrahieren und dabei direkt Strukturinformationen ausnutzen zu können (z.\,B. um Referenz-Blöcke zu erkennen). Bei einigen Dokumenten entstanden jedoch Fehler mit pdfminer, weshalb dieser Ansatz verworfen wurde. So werden in der Pipeline zunächst die Textdateien sowie zugehörige Metadaten eingelesen \footnote{\url{https://github.com/marekrei/ml_nlp_paper_data}}. Da verschiedene spätere Schritt außerdem Informationen über die Zeichenposition des Abstract-Starts brauchen, wird dieser zudem bereits mit einem regulären Ausdruck, unterstützt durch verschiedene Fehlermaßnahmen, bestimmt. So wird beispielsweise überprüft ob der Titel des Dokuments das Wort Abstract enthält. Falls der Start nicht gefunden werden kann oder eine bestimmte Obergrenze überschreitet, wird ein mittelwert-basierter Defaultwert verwendet.
+\paragraph{Dokumentkopf} Als Dokumentkopf definieren wir jeglichen Text (in Rohform), der vor dem Abstract erscheint. Die hohe Dichte unterschiedlicher zu entfernender Informationen, gepaart mit Artefakten und Strukturfehlern, machen diese Stufe zu einer der größten Herausforderungen der Aufgabe. So kommen beziehen sich vor allem Namen, E-Mails, Herkunftsländer, Institutionen und persönliche Daten auf diesen Schritt. Initial wurde dafür die Idee verfolgt, \textit{Named-Entity-Recognition} mittels \textit{spaCy} \cite{spacy2} einzusetzen, um all diese Informationen (außer E-Mails, welche leicht durch reguläre Ausdrücke zu erkennen sind) zu entfernen. SpaCy bietet dafür verschiedene vortrainierte Modelle, welche für diese Arbeit mit im Text durch reguläre Ausdrücke erkannten Informationen nachtrainiert wurden. Da dieser Ansatz Entitäten nicht nur zu unverlässlich erkannte (insbesondere keine Phrasen, die über mehrere Tokens reichen), sondern auch zu schlecht klassifzierte wurde ein weiterer Ansatz entwickelt. So wurde ein LSTM-basiertes \cite{Hochreiter1997}, neuronales Netzwerk implementiert, um jede Zeile (im Textdokument, also keine ganzen Sätze) des Vor-Abstract-Texts in die Klassen Autor, E-Mail, Private Informationen, Institution oder Anderes zu unterteilen. Länder werden in einem späteren Schritt entfernt.  Zum Training wurden 250 Dokumente zeilenweise mit einer Kommandozeilenanwendung annotiert. Dabei wurden zufällig Dokumente aus dem Korpus gezogen, allerdings wurde sichergestellt, dass jede Konferenz vorkommt. Zudem sind verschiedene Fehlerfälle enthalten, bei denen der Start des Abstracts nicht korrekt erkannt wurde und somit späterer Text enthalten ist. Das Modell erreicht auf weiteren 50 Dokumenten einen Makro-F1-Wert von etwa 96\%. Die Architektur verfolgt einen ähnlichen Ansatz wie \autoref{eq:embedding}--\ref{eq:zd}, nutzt jedoch nach $X_{zd}$ ein zweites LSTM zur zeilenweisen Klassifikation.
+\paragraph{Referenzen}
+\paragraph{Gutachter}
+\paragraph{Danksagungen}
+\paragraph{E-Mails}
+\paragraph{Geolokationen}
+\paragraph{Fußnoten}
+\paragraph{Sprache}
+
+\section{Task 2: Learning to Discriminate}
 
 \begin{itemize}
+\itemsep-.5em
 \item $z$: Zeilen im Dokument
 \item $t$: Tokens pro Zeile (Padding kürzerer Zeilen)
 \item $d$: Dimension des Modells (z.\,B. 150)
+\item $e$: Embedding-Dimension
 \item $c$: Anzahl Klassen
 \end{itemize}
 
 \begin{align}
-Y_{ztd} &= \text{LSTM}_t(X_{ztd}) \\
-A_{zt} &= \text{softmax}_t\left(\sum_d Y_{ztd} W_{d}^1\right) \\
-Y_{zd} &= \sum_t Y_{ztd} A_{zt} \\
-A_{z} &= \text{softmax}_z\left(\sum_d Y_{zd} W_{d}^2\right) \\
-Y_{d} &= \sum_z Y_{zd} A_z \\
-Y_c &= Y_d W_{dc}^3
+X_{zte} &= \text{Embedding}(X_{zt}) \\ \label{eq:embedding}
+X_{ztd} &= \text{LSTM}_t(X_{zte}) \\
+A_{zt} &= \text{softmax}_t\left(\sum_d X_{ztd} W_{d}^1\right) \\
+X_{zd} &= \sum_t X_{ztd} A_{zt} \\ \label{eq:zd}
+A_{z} &= \text{softmax}_z\left(\sum_d X_{zd} W_{d}^2\right) \\
+X_{d} &= \sum_z X_{zd} A_z \\
+Y_c &= Y_d W_{dc}^3 \label{eq:classification}
 \end{align}
 
 
@@ -113,10 +142,29 @@ W_{L,C_i} = \left(\frac{|C_{\max}|}{|C_i|}\right)^\alpha,\;\;\;\alpha = 0.6
 % Please add the following required packages to your document preamble:
 % \usepackage{booktabs}
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=\textwidth]{img/attention-visualized.png}
+\begin{figure}
+     \centering
+     \begin{subfigure}[b]{0.8\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{img/attention-visualized.pdf}
+         \subcaption{Bereinigter Text}
+         \label{fig:hist-mentions}
+     \end{subfigure}
+     \begin{subfigure}[b]{0.8\textwidth}
+         \centering
+         \vspace{.5em}
+         \includegraphics[width=\textwidth]{img/attention-visualized-uncensored.pdf}
+         \subcaption{Originaltext}
+         \label{fig:hist-clusters}
+     \end{subfigure}
+     \caption{Visualisierung der gelernten Gewichtung einzelner Subtokens zur Klassifikation des Herkunftslandes mit bereinigtem und ursprünglichem Text.}
+     \label{fig:droc-histograms}
 \end{figure}
+
+%\begin{align}
+%A_\text{global} &= A_{zt} \cdot A_{z} \\
+%A_\text{global,norm} &= \frac{A_\text{global} - \min A_\text{global}}{\max A_\text{global} - \min A_\text{global}}
+%\end{align}
 
 \begin{table}[]
 \centering

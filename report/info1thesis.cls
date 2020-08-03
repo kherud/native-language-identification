@@ -325,37 +325,37 @@
 %%% Bibliography
 \newcommand{\thesisbibliography}{
     \clearpage
-    \bibliographystyle{mybabalpha-fl}
+    \bibliographystyle{abbrv}
 }
 
 
 
 %%% Erklaerung
-\ifthesis@artcl
-\else
-    \AtEndDocument{
-        %%% Erklärung
-        \clearpage
-        \ifx\@germandate\@empty
-            \gdef\@germandate{\@date}
-        \fi
-        \begin{otherlanguage}{ngerman}
-            \pdfbookmark[\thesis@topbookmarklevel]{Erkl\"arung}{erklaerung}
-            \chapter*{Erkl\"arung}
-
-            \noindent
-            Hiermit versichere ich die vorliegende Abschlussarbeit
-            selbstst\"andig verfasst zu haben, keine anderen als die angegebenen
-            Quellen und Hilfsmittel benutzt zu haben, und die Arbeit bisher oder
-            gleichzeitig keiner anderen Pr\"ufungsbeh\"orde unter Erlangung
-            eines akademischen Grades vorgelegt zu haben.
-            \vspace{1cm}
-
-            \noindent
-            W\"urzburg, den \@germandate \\[1.5cm]
-            $\cdots\cdots\cdots\cdots\cdots\cdots\cdots\cdots\cdots$ \\
-            \begingroup\renewcommand{\and}{\qquad}\thesis@author\endgroup
-        \end{otherlanguage}
-    }
-\fi
+%\ifthesis@artcl
+%\else
+%    \AtEndDocument{
+%        %%% Erklärung
+%        \clearpage
+%        \ifx\@germandate\@empty
+%            \gdef\@germandate{\@date}
+%        \fi
+%        \begin{otherlanguage}{ngerman}
+%            \pdfbookmark[\thesis@topbookmarklevel]{Erkl\"arung}{erklaerung}
+%            \chapter*{Erkl\"arung}
+%
+%            \noindent
+%            Hiermit versichere ich die vorliegende Abschlussarbeit
+%            selbstst\"andig verfasst zu haben, keine anderen als die angegebenen
+%            Quellen und Hilfsmittel benutzt zu haben, und die Arbeit bisher oder
+%            gleichzeitig keiner anderen Pr\"ufungsbeh\"orde unter Erlangung
+%            eines akademischen Grades vorgelegt zu haben.
+%            \vspace{1cm}
+%
+%            \noindent
+%            W\"urzburg, den \@germandate \\[1.5cm]
+%            $\cdots\cdots\cdots\cdots\cdots\cdots\cdots\cdots\cdots$ \\
+%            \begingroup\renewcommand{\and}{\qquad}\thesis@author\endgroup
+%        \end{otherlanguage}
+%    }
+%\fi
 

@@ -152,33 +152,34 @@ Für jedes Dokument werden alle Merkmale extrahiert und anschließend mit einem 
 %
 \subsection{End-to-End Klassifikation}
 %
-Als \textit{End-to-End} werden Modelle bezeichnet, die keine vorherigen oder manuellen Schritte, wie Merkmalsextraktion, benötigen, sondern ausschließlich anhand der rohen, bereinigten Texte klassifizieren. Dafür ist zunächst eine Methode zur Textrepräsentation notwendig. Gängige frühe Verfahren zur Repräsentation ganzer Wörter sind latente Word2Vec- oder GloVe-Vektoren \cite{Mikolov2013,Pennington2014}. Diese sind jedoch aus zahlreichen Gründen problematisch, insbesondere werden die Wörter dabei in der Regel auf Lemmata oder Wortstamm etc. normalisiert, um die Anzahl benötigter Vektoren zu reduzieren. Zudem existieren für falsche Schreibweisen, seltene oder zusammengesetzte Wörter und andere Eigenheiten keine individuellen Vektoren. All diese Informationen spielen aber potentiell eine wichtige Rolle zur Klassifizierung. FastText löst diese Probleme teilweise, indem Wörter als Summen von Zeichen-$n$-Gramm-Vektoren dargestellte werden und somit auch unbekannte Sequenzen repräsentiert werden können \cite{Bojanowski2016}. Der gegenwärtige Standard und auch in dieser Arbeit gewählte Ansatz ist jedoch eine \textit{Byte Pair Encoding}-Subwortdarstellung \cite{Sennrich2015}. Hierbei werden ausgehend von einer Repräsentation auf Zeichenebene inkrementell die häufigsten Symbolfolgen zu einzelnen Subwörtern kombiniert, wodurch letztlich häufige Wörter als eigene Vokabeln existieren, unbekannte Wörter jedoch auch durch Subwortsequenzen ausgedrückt werden können. Dies ermöglicht trotz geringer Vokabulargröße Texte kompakt zu repräsentieren. Aufgrund der eigenen wissenschaftlichen Semantik der Konferenzen und der spezifischen Syntax der Textdateien mit ihren Strukturfehlern und Artefakten, werden keine vortrainierten Embeddings verwendet, sondern während dem Trainingsprozess von Grund auf erlernt. Zudem wurde probiert, die Embeddings eigenständig vorzutrainieren, indem das spätere, anschließend weiterverwendete LSTM (\autoref{eq:embedding} \& \ref{eq:lstm}) mittels \textit{Masked Lanugage Modelling} trainiert wird. Die Idee dabei ist, einzelne Wörter zu maskieren, um anschließend mit dem unmaskierten Kontext vorherzusagen, welche Wörter an den jeweiligen Stelle standen, wodurch das Modell Syntax und teilweise Semantik erlernt und die Embeddings entsprechend anpasst. Dabei zeigte sich jedoch keine Verbesserung der späteren Ergebnisse, lediglich eine erhebliche Beschleunigung der Trainingsdauer. \\
+Als \textit{End-to-End} werden Modelle bezeichnet, die keine vorherigen oder manuellen Schritte, wie Merkmalsextraktion, benötigen, sondern ausschließlich anhand der rohen, bereinigten Texte klassifizieren. Dafür ist zunächst eine Methode zur Textrepräsentation notwendig. Gängige frühe Verfahren zur Repräsentation ganzer Wörter sind latente \textit{Word2Vec}- oder \textit{GloVe}-Vektoren \cite{Mikolov2013,Pennington2014}. Diese sind jedoch aus zahlreichen Gründen problematisch, insbesondere werden die Wörter dabei in der Regel auf Lemmata oder Wortstamm etc. normalisiert, um die Anzahl benötigter Vektoren zu reduzieren. Zudem existieren für falsche Schreibweisen, seltene oder zusammengesetzte Wörter und andere Eigenheiten keine individuellen Vektoren. All diese Informationen spielen aber potentiell eine wichtige Rolle zur Klassifizierung. \textit{FastText} löst diese Probleme teilweise, indem Wörter als Summen von Zeichen-n-Gramm-Vektoren dargestellte werden und somit auch unbekannte Sequenzen repräsentiert werden können \cite{Bojanowski2016}. Der gegenwärtige Standard und auch in dieser Arbeit gewählte Ansatz ist jedoch eine \textit{Byte Pair Encoding}-Subwortdarstellung \cite{Sennrich2015}. Hierbei werden ausgehend von einer Repräsentation auf Zeichenebene inkrementell die häufigsten Symbolfolgen zu einzelnen Subwörtern kombiniert, wodurch letztlich häufige Wörter als eigene Vokabeln existieren, unbekannte Wörter jedoch auch durch Subwortsequenzen ausgedrückt werden können. Dies ermöglicht trotz geringer Vokabulargröße Texte kompakt zu repräsentieren. Aufgrund der eigenen wissenschaftlichen Semantik der Konferenzen und der spezifischen Syntax der Textdateien mit ihren Strukturfehlern und Artefakten, werden keine vortrainierten Embeddings verwendet, sondern während dem Trainingsprozess von Grund auf erlernt. Zudem wurde probiert, die Embeddings eigenständig vorzutrainieren, indem das spätere, anschließend weiterverwendete LSTM (\autoref{eq:embedding} \& \ref{eq:lstm}) mittels \textit{Masked Lanugage Modelling} trainiert wird. Die Idee dabei ist, einzelne Wörter zu maskieren, um anschließend mit dem unmaskierten Kontext vorherzusagen, welche Wörter an den jeweiligen Stellen standen, wodurch das Modell Syntax und teilweise Semantik erlernt und die Embeddings entsprechend anpasst. Dabei zeigte sich jedoch keine Verbesserung der späteren Ergebnisse, lediglich eine erhebliche Beschleunigung des Trainingsfortschritts. \\
 Um die zentrale, für diese Arbeit entwickelte End-to-End-Netzarchitektur zu beschreiben werden zunächst einige Indizes definiert.
 %
 \begin{itemize}
 \itemsep-.5em
 \item $z$: Zeilen im Dokument
-\item $t$: (Sub-)Tokens pro Zeile (Padding kürzerer Zeilen)
+\item $w$: (Sub-)Worte pro Zeile (Padding kürzerer Zeilen)
 \item $d$: Dimension des Modells (z.\,B. 150)
 \item $e$: Embedding-Dimension
 \item $c$: Anzahl Klassen
 \end{itemize}
 %
-Die Netzarchitektur lässt sich dann durch \autoref{eq:embedding} -- \ref{eq:classification} beschreiben (die \textit{Batch}-Axe wird hierbei ausgelassen).
+Die Netzarchitektur lässt sich dann durch \autoref{eq:embedding} -- \ref{eq:classification} beschreiben (die Batchaxe wird hierbei ausgelassen).
 %
 \begin{align}
-X_{zte} &= \text{Embedding}(X_{zt}) \label{eq:embedding} \\
-X_{ztd} &= \text{LSTM}_t(X_{zte}) \label{eq:lstm} \\
-A_{zt} &= \text{softmax}_t\left(\sum_d X_{ztd} W_{d}^1\right) \\
-X_{zd} &= \sum_t X_{ztd} A_{zt} \label{eq:zd} \\
-A_{z} &= \text{softmax}_z\left(\sum_d X_{zd} W_{d}^2\right) \\
+X_{zwe} &= \text{Embedding}(X_{zw}) \label{eq:embedding} \\
+X_{zwd} &= \text{LSTM}_w(X_{zwe}) \label{eq:lstm} \\
+A_{zw} &= \text{softmax}_w\left(\sum_d X_{zwd} W_{d}^1\right) \\
+X_{zd} &= \sum_w X_{zwd} A_{zw} \label{eq:zd} \\
+A_{z} &= \text{softmax}_z\left(\sum_d X_{zd} W_{d}^2\right) \label{eq:az} \\
 X_{d} &= \sum_z X_{zd} A_z \label{eq:d} \\
 Y_c &= Y_d W_{dc}^3 \label{eq:classification}
 \end{align}
 %
-So läuft zunächst eine LSTM-Schicht parallel und individuell über jede Zeile im Dokument. Für diesen Schritt wird die Zeilen- als Batchaxe behandelt (d.\,h. beide Axen werden zusammengeführt), wodurch alle Zeilen in einem einzigen Vorwärtsschritt des Netzwerks verarbeitet werden können, was die Architektur extrem schnell macht. Das Netzwerk lernt anschließend eine Gewichtung $W_d^1$ (in Form eines einzelnen Neurons oder Subnetzwerks mit einzelnem Ausgabeneuron, daher eindimensional), wie wichtig jeder verdeckte Zustand der LSTM-Schicht zu jedem Subwort ist. Anschließend werden die mit der \textit{Softmax}-Funktion normalisierten Anteile für jedes Subwort innerhalb einer Zeile bestimmt, um damit die LSTM-Zustände zu gewichten und anschließend zu einem Vektor pro Zeile $X_{zd}$ aufzuaddieren. Das Netzwerk lernt dann eine zweite, äquivalente Gewichtung $W_d^2$, um damit alle Zeilen gemäß ihrer Relevanz zu gewichten und zu einem finalen Vektor, der das gesamte Dokument repräsentiert, zu summieren. Eine letzte lineare Schicht ergibt dann die Klassen-Logits $Y_c$. \\
-Um extremes Padding zu vermeiden, wird mit einer Batch-Größe von eins trainiert (andernfalls müssten alle Daten im Batch auf die Anzahl des Dokuments mit den meisten Zeilen angepasst werden). Die Subwortaxe wird auf die längste Zeile im Dokument, höchstens jedoch auf 50 Subwörter per Padding angepasst (was 99,9\% aller Zeilen einschließt). \\
-Zudem wurde mit Normalisierung und Dropout nach \autoref{eq:zd} und \ref{eq:d} experimentiert, jedoch führte keines der Ergebnisse zu Verbesserungen. \\
+So läuft zunächst eine LSTM-Schicht parallel und individuell über jede Zeile im Dokument. Für diesen Schritt wird die Zeilen- als Batchaxe behandelt (d.\,h. beide Axen werden zusammengeführt), wodurch alle Zeilen in einem einzigen Vorwärtsschritt des Netzwerks verarbeitet werden können, was die Architektur extrem schnell macht. Das Netzwerk lernt anschließend eine Gewichtung $W_d^1$ (in Form eines einzelnen Neurons oder Subnetzwerks mit einzelnem Ausgabeneuron, daher eindimensional), wie wichtig jeder verdeckte Zustand der LSTM-Schicht zu jedem Subwort ist. Anschließend werden die mit der \textit{Softmax}-Funktion normalisierten Anteile für jedes Subwort innerhalb einer Zeile bestimmt, um damit die LSTM-Zustände zu gewichten und anschließend zu einem Vektor pro Zeile $X_{zd}$ aufzuaddieren. Das Netzwerk lernt dann eine zweite, äquivalente Gewichtung $W_d^2$, um damit alle Zeilen gemäß ihrer Relevanz zu gewichten und zu einem finalen Vektor, der das gesamte Dokument repräsentiert, zu summieren. Eine letzte lineare Schicht ergibt dann die Klassen-Logits $Y_c$.
+Eine zweite LSTM-Schicht zwischen \autoref{eq:zd} und \ref{eq:az}, um potentiell Abhängigkeiten zwischen Zeilen besser zu erfassen, führte empirisch zu keiner Verbesserung. Durch zufällige Suche wurde $e = 100$ und $d = 150$ empirisch ermittelt. \\
+Um extremes Padding zu vermeiden, wird mit einer Batch-Größe von eins trainiert (andernfalls müssten alle Daten im Batch auf die Anzahl des Dokuments mit den meisten Zeilen angepasst werden). Die Subwortaxe wird auf die längste Zeile im Dokument, höchstens jedoch auf 50 Subwörter mittels Padding angepasst (was 99,9\% aller Zeilen einschließt). Um sowohl Speicher- als auch Zeitkomplexität zu reduzieren, wird \textit{Automatic Mixed Precision} \footnote{\url{https://github.com/NVIDIA/apex}}, also auf Float16 statt Float32 basierende Parameter, eingesetzt.
+Zudem wurde mit Normalisierung und Dropout nach \autoref{eq:zd} und \ref{eq:d} experimentiert, jedoch ohne resultierende Verbesserungen. \\
 Da sich die Häufigkeiten der Dokumente zu jedem Herkunftsland extrem unterscheiden (\autoref{tab:label-frequencies}), wurden verschiedene Maßnahmen für das Training untersucht.
 %
 \begin{table}[h!]
@@ -191,11 +192,18 @@ Häufigkeit & 8699 & 2119 & 1042 & 770 & 557 & 542 & 470 & 278 & 277 & 256 & 254
 \label{tab:label-frequencies}
 \end{table}
 %
-Sowohl Auslassen von Datensätze größerer Klassen als auch Vervielfachen von Dokumente seltener Länder zeigten keine Verbesserung. Erstes verschlechterte die Ergebnisse maßgeblich, letzteres führte hauptsächlich zu einer längeren Trainingsdauer. Stattdessen wurde die Loss-Funktion gewichtet (\autoref{eq:loss-weights}). Der Wert von $\alpha$ wurde dabei mittels Ausprobieren aller Werte von 0.0--1.0 in Zehntelschritten ermittelt.
+Sowohl Auslassen von Datensätze größerer Klassen als auch Vervielfachen von Dokumente seltener Länder zeigten keine Verbesserung. Erstes verschlechterte die Ergebnisse maßgeblich, letzteres führte hauptsächlich zu einer längeren Trainingsdauer. Stattdessen wurde die Loss-Funktion gewichtet (\autoref{eq:loss-weights}). Der Wert von $\alpha$ wurde dabei durch Ausprobieren aller Werte von 0.0--1.0 in Zehntelschritten ermittelt.
 %
 \begin{equation}
 W_{L,C_i} = \left(\frac{|C_{\max}|}{|C_i|}\right)^\alpha,\;\;\;\alpha = 0.6 \label{eq:loss-weights}
 \end{equation}
+%
+Außerdem wurden verschiedene andere Architekturen ausprobiert.
+\begin{itemize}
+\item \textbf{CNN}: Hierbei wurden \autoref{eq:lstm}--\ref{eq:zd} durch ein Satz-CNN ersetzt \cite{Kim2014}. Anstatt den Text eindimensional in das CNN zu geben, wurde die zweidimensionale Form $z \times w$ behalten, was die Zeitkomplexität von O($zw$) maßgeblich auf O($w$) reduziert (dabei gehen jedoch potentiell Abhängigkeiten zwischen Zeilen verloren).
+\item \textbf{RoBERTa}: Dieses 125 Millionen Parameter starke, vortrainierte Sprachmodell basiert auf der Transformer-Architektur und kann Sequenzlängen bis 512 verarbeiten \cite{Liu2019}. Der Text wird deshalb in entsprechende Stücke aufgeteilt, welche separat mit dem Modell verarbeitet werden. Anschließend läuft eine LSTM-Schicht über die gepoolte Ausgabe dieser Stücke, um das Dokument letztlich zu klassifizieren.
+\item \textbf{Longformer}: Dieses ebenfalls vortrainierte Modell verbessert die Transformer- Architektur, sodass Speicher- und Zeitkomplexität linear mit der Sequenzlänge skalieren \cite{Beltagy2020}. Dadurch wird es möglich, gleichzeitig 4096 Subwörter zu verarbeiten, was durchschnittlich 53\% einzelner Dokumente abdeckt. So werden die ersten 4096 der Subtokens mit dem Modell und einer einfachen linearen Schicht klassifiziert. 
+\end{itemize}
 %
 %O($t$) statt O($zt$)
 

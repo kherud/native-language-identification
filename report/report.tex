@@ -141,9 +141,18 @@ Um die bereinigten Dokumente hinsichtlich des Herkunftslands ihrer Autoren zu kl
 
 Stylometrie befasst sich mit der Untersuchung von Sprachstil in der Regel zur Bestimmung des Autors \cite{Spillner1974}. Diesem Abschnitt liegt die Annahme zugrunde, dass sich die selben Mittel auch zur Bestimmung des Herkunftlands übertragen lassen. Statistische und rechnerische Zuweisung der Urheberschaft hat generell eine lange Geschichte, die bis ins 19. Jahrhundert reicht \cite{Stamatatos2009}. Dementsprechend existieren viele Methoden, die von einfachen Ideen, wie Mendenhalls Kurven zu Wortlängen (1887!) \cite{Mendenhall1887}, über Kilgarriffs $\chi^2$-Tests zu Vokabularähnlichkeit \cite{Kilgarriff2001} bis zu fortgeschritteneren Ideen, wie Burrows Delta Statistik \cite{Burrows2002}, reicht. In dieser Arbeit wurden verschiedene linguistische Merkmale extrahiert.
 \begin{itemize}
-\item \textbf{Lexikalische Vielfalt (LV)}: Für verschiedene Maße zum Reichtum des Wortschatzes einzelner Dokumente wurde das Python-Modul \textit{lexicalrichness} eingesetzt \footnote{\url{https://github.com/LSYS/lexicalrichness}}. Insgesamt wurden die Maße Type-Token-Ration (TTR) \cite{Templin1957}, Guirauds Index \cite{Guiraud1954},  Corrected-TTR \cite{Carroll1964}, Herdans Maß \cite{Herdan1964}, Somers Maß \cite{Somers1966}, Dugasts Index \cite{Dugast1978}, Maas Index \cite{Maas1972}, Mean-Segmental-TTR \cite{Torruella2013}, Moving-Average-TTR \cite{Covington2010}, Measure of Textual Lexical Diversity  \cite{McCarthy2010} und die Hypergeometrische-Verteilungs-Diversität \cite{McCarthy2007} ermittelt.
+\item \textbf{Lexikalische Diversität}: Für verschiedene Maße zum Reichtum des Wortschatzes einzelner Dokumente wurde das Python-Modul \textit{lexicalrichness} eingesetzt \footnote{\url{https://github.com/LSYS/lexicalrichness}}. Insgesamt wurden die Maße Type-Token-Ration (TTR) \cite{Templin1957}, Guirauds Index \cite{Guiraud1954},  Corrected-TTR \cite{Carroll1964}, Herdans Maß \cite{Herdan1964}, Somers Maß \cite{Somers1966}, Dugasts Index \cite{Dugast1978}, Maas Index \cite{Maas1972}, Mean-Segmental-TTR \cite{Torruella2013}, Moving-Average-TTR \cite{Covington2010}, Measure of Textual Lexical Diversity  \cite{McCarthy2010} und die Hypergeometrische-Verteilungs-Diversität \cite{McCarthy2007} ermittelt.
+\item \textbf{Wort- und Satzlängen}: Für Wortlängen und Satzlängen werden Histogramme der Dokumente gebildet, die mittels der Anzahl an Wörtern beziehungsweise Sätzen insgesamt normalisiert wird. Wortlängen werden in Zeichen gemessen und auf 50 beschränkt, Satzlängen mittels ihrer Anzahl an Wörtern bis 100 (\autoref{app:word-sentence-lengths} zeigt solche Histogramme für alle Dokumente kombiniert).
+\item \textbf{Interpunktion}: Häufigkeiten von genutzten Interpunktionszeichen (jegliche in Python durch \textit{string.punctuation} definierte Zeichen), normalisiert über die gesamte Zeichenanzahl im Dokument.
+\item \textbf{Funktionswörter}: Häufigkeiten von insbesondere Stopwörtern und weiteren Kandidaten für Unterscheidbarkeit (insgesamt 277 Funktionswörter \footnote{\url{https://semanticsimilarity.wordpress.com/function-word-lists}}).
+\item \textbf{N-Gramme}: Den wichtigsten Teil bilden die N-Gramm-Histogramme. Dafür werden jeweils die 200 häufigsten 2- und 3-Gramme über die Lemmata der Wörter, über OntoNotes5-POS-Tags und über universelle POS-Tags mittels spaCy ermittelt \cite{RalphWeischedel2013}.
 \end{itemize}
+%
+Für jedes Dokument werden alle Merkmale extrahiert und anschließend mit einem einfachen neuronalen Netzwerk klassifiziert. Das Netzwerk besteht aus einer beliebigen Anzahl Blöcken, die jeweils aus einer verdeckten Schicht, Batch-Normalisierung \cite{Ioffe2015}, SELU-Aktivierung \cite{Klambauer2017} und anschließend Dropout \cite{Srivastava2014} bestehen. Aufgrund der einfachen und schnell zu trainierenden Architektur werden die Hyperparameter (wie Anzahl Blöcke, Anzahl Neuronen, Dropout etc.) mit einer umfangreichen Zufallssuche ermittelt. Neben einem Netzwerk mit der Kombination aller Merkmale existieren separate Netzwerke für alle Merkmalstypen alleinstehend, mit der Intention diese vortrainierten Subnetzwerke später mit dem \textit{End-To-End}-Modell zu kombinieren.
 
+\subsection{End-to-End Klassifikation}
+
+Als \textit{End-to-End} werden Modelle bezeichnet, die keine vorherigen oder manuellen Schritte, wie Merkmalsextraktion, benötigen, sondern ausschließlich anhand der rohen, bereinigten Texte klassifizieren. Dafür ist zunächst eine Textrepräsentation notwendig.
 
 \begin{itemize}
 \itemsep-.5em
@@ -172,23 +181,25 @@ W_{L,C_i} = \left(\frac{|C_{\max}|}{|C_i|}\right)^\alpha,\;\;\;\alpha = 0.6
 % Please add the following required packages to your document preamble:
 % \usepackage{booktabs}
 
+\chapter{Ergebnisse}
+
 \begin{figure}
      \centering
      \begin{subfigure}[b]{0.8\textwidth}
          \centering
          \includegraphics[width=\textwidth]{img/attention-visualized.pdf}
          \subcaption{Bereinigter Text}
-         \label{fig:hist-mentions}
+         \label{fig:visualized-cleaned-text}
      \end{subfigure}
      \begin{subfigure}[b]{0.8\textwidth}
          \centering
          \vspace{.5em}
          \includegraphics[width=\textwidth]{img/attention-visualized-uncensored.pdf}
          \subcaption{Originaltext}
-         \label{fig:hist-clusters}
+         \label{fig:visualized-original-text}
      \end{subfigure}
      \caption{Visualisierung der gelernten Gewichtung einzelner Subtokens zur Klassifikation des Herkunftslandes mit bereinigtem und ursprünglichem Text.}
-     \label{fig:droc-histograms}
+     \label{fig:visualized-texts}
 \end{figure}
 
 %\begin{align}
@@ -225,13 +236,29 @@ W_{L,C_i} = \left(\frac{|C_{\max}|}{|C_i|}\right)^\alpha,\;\;\;\alpha = 0.6
 \thesisbibliography
 \bibliography{report}
 
-
-
 \appendix
 
+\chapter{Wort- und Satzlängenhistogramme}
+\label{app:word-sentence-lengths}
 
-\chapter{Formelles/LaTeX}
-
+\begin{figure}[h!]
+     \centering
+     \begin{subfigure}[b]{0.49\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{img/histogram-word-lengths.pdf}
+         \subcaption{Wortlängen}
+         \label{fig:hist-mentions}
+     \end{subfigure}
+     \hfill
+     \begin{subfigure}[b]{0.49\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{img/histogram-sentence-lengths.pdf}
+         \subcaption{Satzlängen}
+         \label{fig:hist-clusters}
+     \end{subfigure}
+     \caption{Histogramme über alle Dokumente hinsichtlich durchschnittlicher Zeichenlänge von Wörtern und Wortlänge von Sätzen. Artefakte und fehlerhafte Strukturinformationen verzerren die Ergebnisse.}
+     \label{fig:droc-histograms}
+\end{figure}
 
 %\clearpage
 %\pdfbookmark[0]{ToDo-Liste}{todos}

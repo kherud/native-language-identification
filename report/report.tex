@@ -20,7 +20,7 @@
 %%% Titelseite -- hier Titel und Autorennamen eintragen
 \title{Machine Learning for Natural Language Processing} % Geben Sie hier den Titel Ihrer Arbeit an.
 \subtitle{am Lehrstuhl für Informatik X}
-\author{Konstantin Herud\and Thomas Schaffroth\and Maximilian Meißner} % Geben Sie Ihren Namen an.
+\author{Konstantin Herud\and Thomas Schaffroth} % Geben Sie Ihren Namen an. \and Maximilian Meißner
 %\date{Eingereicht am \abgabedatum}
 \titlehead{Julius-Maximilians-Universität Würzburg\\
 Institut für Informatik\\
@@ -145,10 +145,10 @@ Stylometrie befasst sich mit der Untersuchung von Sprachstil in der Regel zur Be
 \item \textbf{Wort- und Satzlängen}: Für Wort- und Satzlängen werden Histogramme der Dokumente gebildet, die mittels der Anzahl an Wörtern beziehungsweise Sätzen insgesamt normalisiert wird. Wortlängen werden in Zeichen gemessen und auf 50 beschränkt, Satzlängen mittels ihrer Anzahl an Wörtern bis 100 (\autoref{app:word-sentence-lengths} zeigt solche Histogramme für alle Dokumente kombiniert).
 \item \textbf{Interpunktion}: Häufigkeiten von genutzten Interpunktionszeichen (jegliche in Python durch \textit{string.punctuation} definierte Zeichen), normalisiert über die gesamte Zeichenanzahl im Dokument.
 \item \textbf{Funktionswörter}: Häufigkeiten von insbesondere Stopwörtern und weiteren Kandidaten (insgesamt 277 Funktionswörter \footnote{\url{https://semanticsimilarity.wordpress.com/function-word-lists}}).
-\item \textbf{N-Gramme}: Den wichtigsten Teil bilden die N-Gramm-Histogramme. Dafür werden jeweils die 200 häufigsten 2- und 3-Gramme über die Lemmata der Wörter, über OntoNotes5-POS-Tags und über universelle POS-Tags mittels spaCy ermittelt \cite{RalphWeischedel2013}.
+\item \textbf{N-Gramme}: Den wichtigsten Teil bilden die N-Gramm-Histogramme. Dafür werden jeweils die 200 häufigsten 2- und 3-Gramme über die Lemmata der Wörter, über OntoNotes5-POS-Tags und über universelle POS-Tags mittels spaCy ermittelt (später in dieser Reihenfolge mit \textit{Token}, \textit{Tag} und \textit{POS} abgekürzt) \cite{RalphWeischedel2013}.
 \end{itemize}
 %
-Für jedes Dokument werden alle Merkmale extrahiert und anschließend mit einem einfachen neuronalen Netzwerk klassifiziert. Das Netzwerk besteht aus einer beliebigen Anzahl Blöcken, die jeweils aus einer verdeckten Schicht, Batch-Normalisierung \cite{Ioffe2015}, SELU-Aktivierung \cite{Klambauer2017} und anschließend Dropout \cite{Srivastava2014} bestehen. Aufgrund der einfachen und schnell zu trainierenden Architektur werden die Hyperparameter (wie Anzahl Blöcke, Anzahl Neuronen, Dropout etc.) mit einer umfangreichen Zufallssuche ermittelt. Neben einem Netzwerk mit der Kombination aller Merkmale existieren separate Netzwerke für alle Merkmalstypen alleinstehend, mit der Intention diese vortrainierten Subnetzwerke später mit dem \textit{End-To-End}-Modell zu kombinieren.
+Für jedes Dokument werden alle Merkmale extrahiert, über den gesamten Korpus standardisiert und anschließend mit einem einfachen neuronalen Netzwerk klassifiziert. Das Netzwerk besteht aus einer beliebigen Anzahl Blöcken, die jeweils aus einer verdeckten Schicht, Batch-Normalisierung \cite{Ioffe2015}, SELU-Aktivierung \cite{Klambauer2017} und anschließend Dropout \cite{Srivastava2014} bestehen. Aufgrund der einfachen und schnell zu trainierenden Architektur werden die Hyperparameter (wie Anzahl Blöcke, Anzahl Neuronen, Dropout etc.) mit einer umfangreichen Zufallssuche ermittelt. Neben einem Netzwerk mit der Kombination aller Merkmale existieren separate Netzwerke für alle Merkmalstypen alleinstehend, mit der Intention diese vortrainierten Subnetzwerke später mit dem \textit{End-To-End}-Modell zu kombinieren.
 %
 \subsection{End-to-End Klassifikation}
 %
@@ -177,7 +177,7 @@ Y_c &= X_d W_{dc}^3 \label{eq:classification}
 \end{align}
 %
 So läuft zunächst eine LSTM-Schicht parallel und individuell über jede Zeile im Dokument. Für diesen Schritt wird die Zeilen- als Batchaxe behandelt (d.\,h. beide Dimensionen werden zusammengeführt), wodurch alle Zeilen in einem einzigen Vorwärtsschritt des Netzwerks verarbeitet werden können, was die Architektur extrem schnell macht. Das Netzwerk lernt anschließend eine Gewichtung $W_d^1$ (in Form eines einzelnen Neurons oder Subnetzwerks mit einzelnem Ausgabeneuron, daher eindimensional), wie wichtig jeder verdeckte Zustand der LSTM-Schicht zu jedem Subwort ist. Anschließend werden die mit der \textit{Softmax}-Funktion normalisierten Anteile für jedes Subwort innerhalb einer Zeile bestimmt, um damit die LSTM-Zustände zu gewichten und anschließend zu einem Vektor pro Zeile $X_{zd}$ aufzuaddieren. Das Netzwerk lernt dann eine zweite, äquivalente Gewichtung $W_d^2$, um damit alle Zeilen gemäß ihrer Relevanz zu gewichten und zu einem finalen Vektor, der das gesamte Dokument repräsentiert (siehe \autoref{app:hidden-state-projection}), zu summieren. Eine letzte lineare Schicht ergibt dann die Klassen-Logits $Y_c$.
-Eine zweite LSTM-Schicht zwischen \autoref{eq:zd} und \ref{eq:az}, um potentiell Abhängigkeiten zwischen Zeilen besser zu erfassen, führte empirisch zu keiner Verbesserung. Durch zufällige Suche wurde $e = 100$ und $d = 150$ empirisch ermittelt. \\
+Eine zweite LSTM-Schicht zwischen \autoref{eq:zd} und \ref{eq:az}, um potentiell Abhängigkeiten zwischen Zeilen besser zu erfassen, führte empirisch zu keiner Verbesserung. Dokumente satz- statt zeilenweise zu verarbeiten ergibt vergleichbare Ergebnisse. Durch zufällige Suche wurde $e = 100$ und $d = 150$ empirisch ermittelt. \\
 Um extremes Padding zu vermeiden, wird mit einer Batch-Größe von eins trainiert (andernfalls müssten alle Daten im Batch auf die Anzahl des Dokuments mit den meisten Zeilen angepasst werden). Die Subwortaxe wird auf die längste Zeile im Dokument, höchstens jedoch auf 50 Subwörter mittels Padding angepasst (was 99,9\% aller Zeilen einschließt). Um sowohl Speicher- als auch Zeitkomplexität zu reduzieren, wird \textit{Automatic Mixed Precision} \footnote{\url{https://github.com/NVIDIA/apex}}, also auf Float16 statt Float32 basierende Parameter, eingesetzt.
 Zudem wurde mit Normalisierung und Dropout nach \autoref{eq:zd} und \ref{eq:d} experimentiert, jedoch ohne resultierende Verbesserungen. \\
 Da sich die Häufigkeiten der Dokumente zu jedem Herkunftsland extrem unterscheiden (\autoref{tab:label-frequencies}), wurden verschiedene Maßnahmen für das Training untersucht.
@@ -198,7 +198,8 @@ Sowohl Auslassen von Datensätzen größerer Klassen (\textit{Downsampling}) als
 W_{C_i}^L = \left(\frac{|C_{\max}|}{|C_i|}\right)^\alpha,\;\;\;\alpha = 0.6 \label{eq:loss-weights}
 \end{equation}
 %
-Außerdem wurden verschiedene andere Architekturen ausprobiert. Generell sind Transformer der vorherrschende Architekturstandard. Da deren Komplexität jedoch quadratisch mit der Anzahl an Eingabewörtern skaliert und die Parameteranzahl von vortrainierten Modellen meist in den Gigabyte-Bereich reicht, eignen sich entsprechende Modelle nur bedingt. Zudem ist der Domänentransfer problematisch, da sich die bereinigten Textdateien mit oftmals fehlenden (oder schlichtweg nicht vorhandenen, z.\,B. Titel, Überschriften etc.) Satzgrenzen und zahlreichen Artefakten stark von den strukturierten Daten, auf denen die Transformer vortrainiert wurden, unterscheiden.
+\newpage
+\noindent Außerdem wurden verschiedene andere Architekturen ausprobiert. Generell sind Transformer der vorherrschende Architekturstandard. Da deren Komplexität jedoch quadratisch mit der Anzahl an Eingabewörtern skaliert und die Parameteranzahl von vortrainierten Modellen meist in den Gigabyte-Bereich reicht, eignen sich entsprechende Modelle nur bedingt. Zudem ist der Domänentransfer problematisch, da sich die bereinigten Textdateien mit oftmals fehlenden (oder schlichtweg nicht vorhandenen, z.\,B. Titel, Überschriften etc.) Satzgrenzen und zahlreichen Artefakten stark von den strukturierten Daten, auf denen die Transformer vortrainiert wurden, unterscheiden.
 \begin{itemize}
 \item \textbf{CNN}: Hierbei wurden \autoref{eq:lstm}--\ref{eq:zd} durch ein Satz-CNN ersetzt \cite{Kim2014}. Anstatt den Text eindimensional in das CNN zu geben, wurde die zweidimensionale Form $z \times w$ beibehalten, was die Zeitkomplexität von O($zw$) maßgeblich auf O($w$) reduziert (dabei gehen jedoch potentiell Abhängigkeiten zwischen Zeilen verloren).
 \item \textbf{RoBERTa}: Dieses 125 Millionen Parameter starke, vortrainierte Sprachmodell basiert auf der Transformer-Architektur und kann Sequenzlängen bis 512 verarbeiten \cite{Liu2019}. Der Text wird deshalb in entsprechende Stücke aufgeteilt, welche separat mit dem Modell verarbeitet werden. Anschließend läuft eine LSTM-Schicht über die gepoolte Ausgabe dieser Stücke, um das Dokument letztlich zu klassifizieren.
@@ -251,7 +252,7 @@ Außerdem wurden verschiedene andere Architekturen ausprobiert. Generell sind Tr
                            & IL  &    & 1  &     & 1  &    &    & 14 & 2  &    &    &    & 10  \\
                            & JP  &    &    & 2   & 1  &    &    &    & 45 &    & 1  & 1  & 6   \\
                            & SG  &    & 1  & 6   &    &    &    &    &    & 9  &    & 2  & 8   \\
-                           & CH  &    &    & 3   &    & 7  &    &    &    &    & 4  & 4  & 8   \\
+                           & CH  &    &    &    & 3   & 7  &    &    &    &    & 4  & 4  & 8   \\
                            & UK  & 3  & 5  & 1   & 6  & 1  & 2  &    & 1  &    & 2  & 66 & 18  \\
                            & USA & 3  & 13 & 38  & 17 & 6  & 1  & 2  & 8  & 2  & 3  & 32 & 746 \\ \cmidrule(l){2-14} 
 \end{tabular}
@@ -298,8 +299,41 @@ asdasd
 \begin{figure}[h!]
 \centering
 \includegraphics[width=\textwidth]{img/hidden-state-projection.png}
-\caption{Dreidimensionale \textit{Principal Component Analysis}-Projektion des internen Modellzustands $X_d$ (siehe \autoref{eq:d}) von den Klassen USA (blau), China (rot) und UK (rosa). Erstellt mittels \url{https://projector.tensorflow.org/}.}
+\caption{Dreidimensionale \textit{Principal Component Analysis}-Projektion des internen Modellzustands $X_d$ (siehe \autoref{eq:d}) der Klassen USA (blau), China (rot) und UK (rosa). Erstellt mittels \url{https://projector.tensorflow.org/}.}
 \end{figure}
+
+\chapter{Klassifikation einzelner Zeilen}
+\label{app:hidden-state-projection}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.9\textwidth]{img/line-pca.png}
+\caption{Dreidimensionale \textit{Principal Component Analysis}-Projektion des internen Modellzustands jeder Zeile $X_{zd}$ eines zufälligen Dokuments (siehe \autoref{eq:zd}). Über die Kosinus-Distanz zu Schwerpunkten der Dokumentvektoren $X_d$ kann jeder Zeile eines der Länder USA (blau), China (rot) oder UK (rosa) zugeordnet werden.}
+\end{figure}
+
+\textbf{Beispiele für Zeilen mit minimaler Distanz}
+\begin{itemize}
+\item \textbf{USA}:%
+\vspace{-.5em}
+\begin{figure}[h!]
+\centering
+\includegraphics[height=1.2em]{img/line-usa.pdf}
+\end{figure}
+\vspace{-1.5em}
+\item \textbf{China}:%
+\vspace{-.5em}
+\begin{figure}[h!]
+\centering
+\includegraphics[height=1.2em]{img/line-china.pdf}
+\end{figure}
+\vspace{-1.5em}
+\item \textbf{UK}:%
+\vspace{-.5em}
+\begin{figure}[h!]
+\centering
+\includegraphics[height=1.2em]{img/line-uk.pdf}
+\end{figure}
+\end{itemize}
 
 %\clearpage
 %\pdfbookmark[0]{ToDo-Liste}{todos}

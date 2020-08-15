@@ -43,8 +43,12 @@ class LSTMClassification(Target):
 
         in_tensor = torch.tensor([document["input_ids"]]).to(self.device)
 
-        with autocast():
+        if self.device.type == "cpu":
             output = self.model(in_tensor)
+        else:
+            with autocast():
+                output = self.model(in_tensor)
+
         prediction = torch.argmax(output, dim=-1).item()
 
         document["prediction"] = self.index2label[prediction]

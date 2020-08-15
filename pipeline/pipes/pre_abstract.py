@@ -34,7 +34,7 @@ class PreAbstractParser(Target):
                                 n_classes=len(self.class_to_index)).to(self.device)
         weights = torch.load(join(self.model_dir, "weights.pt"), map_location=device)
         self.model.load_state_dict(weights)
-        self.model.eval()
+        self.model = self.model.eval()
         self.tokenizer = ByteLevelBPETokenizer(vocab_file=join(self.model_dir, "vocab.json"),
                                                merges_file=join(self.model_dir, "merges.txt"),
                                                lowercase=self.model_config["lowercase"])

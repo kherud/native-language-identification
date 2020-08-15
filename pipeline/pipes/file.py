@@ -11,7 +11,7 @@ class FileReader(Target):
     def __init__(self,
                  data_directory: str):
         super().__init__()
-        self.data_directory = data_directory
+        self.data_directory = os.path.abspath(data_directory)
 
     def __call__(self, document):
         assert type(document) == str, f"input to file reader has wrong type: {type(document)}"
@@ -19,13 +19,17 @@ class FileReader(Target):
 
         document_name = document.split("/")[-1].split(".")[0]
 
-        with open(document, "r") as file:
+        file_name = os.path.basename(document)
+        file_path = os.path.join(self.data_directory, file_name)
+
+        with open(file_path, "r") as file:
             text = file.read()
 
         return {
             "name": document_name,
             "text": text
         }
+
 
 class FileParser(Target):
     def __init__(self,

@@ -32,11 +32,7 @@ class LanguageParser(Target):
             noise_re += "|".join(re.escape(x) for x in document["references_authors"])
         noise_re = re.compile(noise_re, re.IGNORECASE)
 
-        sentences = self.get_sentences(document)
-        for sentence in sentences:
-            # some unicode characters break the library...
-            sentence_text = "".join([c for c in sentence.text if unicodedata.category(c)[0] not in ('S', 'M', 'C')])
-
+        for sentence in self.get_sentences(document):
             # continue if no language detected
             if len(sentence._.language_scores) == 0:
                 continue
@@ -58,6 +54,7 @@ class LanguageParser(Target):
 
     def get_sentences(self, document):
         try:
+            # some unicode characters break the library...
             text = "".join([c if unicodedata.category(c)[0] not in ('S', 'M', 'C') else " " for c in document["text_cleaned"]])
             result = self.language_detector(text)
             return result.sents

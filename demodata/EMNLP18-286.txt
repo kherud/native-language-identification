@@ -1,0 +1,1342 @@
+Mapping Instructions to Actions in 3D Environments
+with Visual Goal Prediction
+Dipendra Misra
+Andrew Bennett
+Eyvind Niklasson
+Max Shatkhin
+
+Valts Blukis
+Yoav Artzi
+
+Department of Computer Science and Cornell Tech, Cornell University, New York, NY, 10044
+{dkm, awbennett, valts, yoav}@cs.cornell.edu
+{een7, ms3448}@cornell.edu
+Abstract
+We propose to decompose instruction execution to goal prediction and action generation. We design a model that maps raw visual observations to goals using L ING UN ET,
+a language-conditioned image generation network, and then generates the actions required
+to complete them. Our model is trained
+from demonstration only without external resources. To evaluate our approach, we introduce two benchmarks for instruction following: L ANI, a navigation task; and C HAI, where
+an agent executes household instructions. Our
+evaluation demonstrates the advantages of our
+model decomposition, and illustrates the challenges posed by our new benchmarks.
+
+1
+
+After reaching the hydrant
+head towards the blue
+fence and pass towards the
+right side of the well.
+
+Put the cereal, the sponge,
+and the dishwashing soap
+into the cupboard above
+the sink.
+
+Figure 1: Example instructions from our two tasks:
+L ANI (left) and C HAI (right). L ANI is a landmark navigation task, and C HAI is a corpus of instructions in the
+C HALET environment.
+
+Introduction
+
+Executing instructions in interactive environments
+requires mapping natural language and observations to actions. Recent approaches propose learning to directly map from inputs to actions, for example given language and either structured observations (Mei et al., 2016; Suhr and Artzi, 2018) or
+raw visual observations (Misra et al., 2017; Xiong
+et al., 2018). Rather than using a combination
+of models, these approaches learn a single model
+to solve language, perception, and planning challenges. This reduces the amount of engineering
+required and eliminates the need for hand-crafted
+meaning representations. At each step, the agent
+maps its current inputs to the next action using a
+single learned function that is executed repeatedly
+until task completion.
+Although executing the same computation at
+each step simplifies modeling, it exemplifies certain inefficiencies; while the agent needs to decide what action to take at each step, identifying
+its goal is only required once every several steps
+or even once per execution. The left instruction in
+Figure 1 illustrates this. The agent can compute its
+
+goal once given the initial observation, and given
+this goal can then generate the actions required.
+In this paper, we study a new model that explicitly distinguishes between goal selection and action generation, and introduce two instruction following benchmark tasks to evaluate it.
+Our model decomposes into goal prediction and
+action generation. Given a natural language instruction and system observations, the model predicts the goal to complete. Given the goal, the
+model generates a sequence of actions.
+The key challenge we address is designing the
+goal representation. We avoid manually designing
+a meaning representation, and predict the goal in
+the agent’s observation space. Given the image of
+the environment the agent observes, we generate a
+probability distribution over the image to highlight
+the goal location. We treat this prediction as image
+generation, and develop L ING UN ET, a language
+conditioned variant of the U-N ET image-to-image
+architecture (Ronneberger et al., 2015). Given the
+visual goal prediction, we generate actions using a
+recurrent neural network (RNN).
+Our model decomposition offers two key advantages. First, we can use different learning methods
+as appropriate for the goal prediction and action
+
+2667
+Proceedings of the 2018 Conference on Empirical Methods in Natural Language Processing, pages 2667–2678
+Brussels, Belgium, October 31 - November 4, 2018. c 2018 Association for Computational Linguistics
+
+generation problems. We find supervised learning
+more effective for goal prediction, where only a
+limited amount of natural language data is available. For action generation, where exploration is
+critical, we use policy gradient in a contextual bandit setting (Misra et al., 2017). Second, the goal
+distribution is easily interpretable by overlaying it
+on the agent observations. This can be used to increase the safety of physical systems by letting the
+user verify the goal before any action is executed.
+Despite the decomposition, our approach retains
+the advantages of the single-model approach. It
+does not require designing intermediate representations, and training does not rely on external resources, such as pre-trained parsers or object detectors, instead using demonstrations only.
+We introduce two new benchmark tasks with
+different levels of complexity of goal prediction
+and action generation. L ANI is a 3D navigation
+environment and corpus, where an agent navigates
+between landmarks. The corpus includes 6,000
+sequences of natural language instructions, each
+containing on average 4.7 instructions. C HAI is
+a corpus of 1,596 instruction sequences, each including 7.7 instructions on average, for C HALET,
+a 3D house environment (Yan et al., 2018). Instructions combine navigation and simple manipulation, including moving objects and opening containers. Both tasks require solving language challenges, including spatial and temporal reasoning,
+as well as complex perception and planning problems. While L ANI provides a task where most instructions include a single goal, the C HAI instructions often require multiple intermediate goals.
+For example, the household instruction in Figure 1 can be decomposed to eight goals: opening
+the cupboard, picking each item and moving it to
+the cupboard, and closing the cupboard. Achieving each goal requires multiple actions of different types, including moving and acting on objects.
+This allows us to experiment with a simple variation of our model to generate intermediate goals.
+We compare our approach to multiple recent
+methods. Experiments on the L ANI navigation
+task indicate that decomposing goal prediction
+and action generation significantly improves instruction execution performance. While we observe similar trends on the C HAI instructions, results are overall weaker, illustrating the complexity of the task. We also observe that inherent
+ambiguities in instruction following make exact
+
+goal identification difficult, as demonstrated by
+imperfect human performance. However, the gap
+to human-level performance still remains large
+across both tasks. Our code and data are available
+at github.com/clic-lab/ciff.
+
+2
+
+Technical Overview
+
+Task Let X be the set of all instructions, S the
+set of all world states, and A the set of all actions.
+An instruction x̄ 2 X is a sequence hx1 , . . . , xn i,
+where each xi is a token. The agent executes
+instructions by generating a sequence of actions,
+and indicates execution completion with the special action STOP.
+The sets of actions A and states S are domain
+specific. In the navigation domain L ANI, the actions include moving the agent and changing its
+orientation. The state information includes the position and orientation of the agent and the different landmarks. The agent actions in the C HALET
+house environment include moving and changing
+the agent orientation, as well as an object interaction action. The state encodes the position and orientation of the agent and all objects in the house.
+For interactive objects, the state also includes their
+status, for example if a drawer is open or closed.
+In both domains, the actions are discrete. The domains are described in Section 6.
+Model The agent does not observe the world
+state directly, but instead observes its pose and an
+RGB image of the environment from its point of
+view. We define these observations as the agent
+context s̃. An agent model is a function from an
+agent context s̃ to an action a 2 A. We model
+goal prediction as predicting a probability distribution over the agent visual observations, representing the likelihood of locations or objects in the
+environment being target positions or objects to be
+acted on. Our model is described in Section 4.
+Learning We assume access to training data
+(i) (i)
+(i)
+with N examples {(x̄(i) , s1 , sg )}N
+i=1 , where x̄
+(i)
+(i)
+is an instruction, s1 is a start state, and sg is the
+goal state. We decompose learning; training goal
+prediction using supervised learning, and action
+generation using oracle goals with policy gradient
+in a contextual bandit setting. We assume an instrumented environment with access to the world
+state, which is used to compute rewards during
+training only. Learning is described in Section 5.
+Evaluation We evaluate task performance on a
+(i) (i)
+(i) is an intest set {(x̄(i) , s1 , sg )}M
+i=1 , where x̄
+
+2668
+
+(i)
+
+(i)
+
+struction, s1 is a start state, and sg is the goal
+state. We evaluate task completion accuracy and
+(i)
+the distance of the agent’s final state to sg .
+
+3
+
+Related Work
+
+Mapping instruction to action has been studied
+extensively with intermediate symbolic representations (e.g., Chen and Mooney, 2011; Kim and
+Mooney, 2012; Artzi and Zettlemoyer, 2013; Artzi
+et al., 2014; Misra et al., 2015, 2016). Recently,
+there has been growing interest in direct mapping
+from raw visual observations to actions (Misra
+et al., 2017; Xiong et al., 2018; Anderson et al.,
+2018; Fried et al., 2018). We propose a model that
+enjoys the benefits of such direct mapping, but explicitly decomposes that task to interpretable goal
+prediction and action generation. While we focus
+on natural language, the problem has also been
+studied using synthetic language (Chaplot et al.,
+2018; Hermann et al., 2017).
+Our model design is related to hierarchical reinforcement learning, where sub-policies at different levels of the hierarchy are used at different frequencies (Sutton et al., 1998). Oh et al. (2017)
+uses a two-level hierarchy for mapping synthetic
+language to actions. Unlike our visual goal representation, they use an opaque vector representation. Also, instead of reinforcement learning, our
+methods emphasize sample efficiency.
+Goal prediction is related to referring expression interpretation (Matuszek et al., 2012a; Krishnamurthy and Kollar, 2013; Kazemzadeh et al.,
+2014; Kong et al., 2014; Yu et al., 2016; Mao et al.,
+2016; Kitaev and Klein, 2017). While our model
+solves a similar problem for goal prediction, we
+focus on detecting visual goals for actions, including both navigation and manipulation, as part of
+an instruction following model. Using formal goal
+representation for instruction following was studied by MacGlashan et al. (2015). In contrast, our
+model generates a probability distribution over images, and does not require an ontology.
+Our data collection is related to existing work.
+L ANI is inspired by the HCRC Map Task (Anderson et al., 1991), where a leader directs a follower to navigate between landmarks on a map.
+We use a similar task, but our scalable data collection process allows for a significantly larger corpus. We also provide an interactive navigation
+environment, instead of only map diagrams. Unlike Map Task, our leaders and followers do not
+interact in real time. This abstracts away inter-
+
+action challenges, similar to how the SAIL navigation corpus was collected (MacMahon et al.,
+2006). C HAI instructions were collected using
+scenarios given to workers, similar to the ATIS
+collection process (Hemphill et al., 1990; Dahl
+et al., 1994). Recently, multiple 3D research environments were released. L ANI has a significantly
+larger state space than existing navigation environments (Hermann et al., 2017; Chaplot et al.,
+2018), and C HALET, the environment used for
+C HAI, is larger and has more complex manipulation compared to similar environments (Gordon
+et al., 2018; Das et al., 2018). In addition, only
+synthetic language data has been released for these
+environment. An exception is the Room-to-Room
+dataset (Anderson et al., 2018) that makes use of
+an environment of connected panoramas of house
+settings. Although it provides a realistic vision
+challenge, unlike our environments, the state space
+is limited to a small number of panoramas and manipulation is not possible.
+
+4
+
+Model
+
+We model the agent policy as a neural network.
+The agent observes the world state st at time t as
+an RGB image It . The agent context s̃t , the information available to the agent to select the next action at , is a tuple (x̄, IP , h(I1 , p1 ), . . . , (It , pt )i),
+where x̄ is the natural language instructions,
+IP is a panoramic view of the environment
+from the starting position at time t = 1, and
+h(I1 , p1 ), . . . , (It , pt )i is the sequence of observations It and poses pt up to time t. The panorama
+IP is generated through deterministic exploration
+by rotating 360 to observe the environment at the
+beginning of the execution.1
+The model includes two main components: goal
+prediction and action generation. The agent uses
+the panorama IP to predict the goal location lg . At
+each time step t, a projection of the goal location
+into the agent’s current view Mt is given as input
+to an RNN to generate actions. The probability of
+an action at at time t decomposes to:
+P (at | s̃t ) =
+
+X⇣
+lg
+
+P (lg | x̄, IP )
+P (at | lg , (I1 , p1 ), . . . , (It , pt ))
+
+⌘
+
+,
+
+where the first term puts the complete distribution
+mass on a single location (i.e., a delta function).
+Figure 2 illustrates the model.
+1
+
+The panorama is a concatenation of deterministic observations along the width dimension. For simplicity, we do not
+include these deterministic steps in the execution.
+
+2669
+
+<latexit sha1_base64="ZFqoLXYV7sidPXV0CZJWQzVe7i4=">AAACOHicbVDBahsxENWmSZps2sZpb+lFxAR6CGY3BJqjoZf2lkKcGLyL0WrHsbCkXaTZxkYs9Gt6bc/9k95yC732C6J19tDYeTDweG9Go3lZKYXFKPoTbLzY3Np+ubMb7r16/Wa/c/D2yhaV4TDghSzMMGMWpNAwQIEShqUBpjIJ19nsU+NffwNjRaEvcVFCqtiNFhPBGXpp3DlMEObovmiLpuKNRuskY8bN63GnG/WiJeg6iVvSJS0uxgfBdpIXvFKgkUtm7SiOSkwdMyi4hDpMKgsl4zN2AyNPNVNgU7c8oqbHXsnppDC+NNKl+v+EY8rahcp8p2I4tateIz7r5bZ5cGU7Ts5TJ3RZIWj+uHxSSYoFbVKiuTDAUS48YdwI/3/Kp8wwjj7LMEwMaLjlhVJM5y7h9ShOnUuMot24rkOfXLya0zq5Ou3FUS/+etbtn7QZ7pD35Ih8IDH5SPrkM7kgA8LJd/KD/CS/gt/BXXAf/H1s3QjamXfkCYJ/D6QrrGg=</latexit>
+
+Instruction x̄
+
+Goal Distribution Pg
+
+Turn left and go to the red oil drum
+Panorama Image Ip
+
+<latexit sha1_base64="H9hvm1brwPvdeS5uvJg4NXp6gwY=">AAACOnicbVDPaxNBGJ2tWutaNdGjHgaD0FPYFUGPgRbsMULTBLJLmJ39kgyZH8vMt2pY9tK/pld77j/Sa2+l1/4BnU1y0MQHA4/3vm/ezMsKKRxG0U2w9+Tps/3nBy/Cl4evXr9ptd+eO1NaDgNupLGjjDmQQsMABUoYFRaYyiQMs8Vx4w9/gnXC6DNcFpAqNtNiKjhDL01aHxKE31h9N0zSEx9nRVY2Dq37k9mk1Ym60Qp0l8Qb0iEb9CftYD/JDS8VaOSSOTeOowLTilkUXEIdJqWDgvEFm8HYU80UuLRafaOmn7yS06mx/mikK/XvjYop55Yq85OK4dxte434Xy93zYVb6Tj9llZCFyWC5uvwaSkpGtr0RHNhgaNcesK4Ff79lM+ZZRx9m2GYWNDwixulmM6rhNfjOK2qxCraies69M3F2z3tkvPP3Tjqxj++dHrRpsMD8p58JEckJl9Jj5ySPhkQTi7IJflDroLr4Da4C+7Xo3vBZucd+QfBwyMkUayW</latexit>
+
+Goa Locat on
+
+Instruction Representation x̄
+
+<latexit sha1_base64="35GceGCyb6GcrBDknTtJ55cXDkI=">AAACQHicbVA9b9RAEF0nEBLzdYEyzSonJKqTjZBCGSkN6Q6JSyKdrdN4PSar7Ie1O4acVu75NbRQ8y/4B+kQLRXryxVwYaSVnt6bmTf7qlZJT1n2I9navnd/58HuXvrw0eMnT0f7z8687ZzAmbDKuosKPCppcEaSFF60DkFXCs+rq5NBP/+Izktr3tOyxVLDByMbKYAitRgdFoTXFKZgrAMN/DTqyPtCA11WTTjtF+1iNM4m2ar4XZCvwZita7rYT3aK2opOoyGhwPt5nrVUBnAkhcI+LTqPLYiraDWP0IBGX4bVZ3r+IjI1b6yLzxBfsX9PBNDeL3UVO4cj/aY2kP/Vaj8s3HCn5k0ZpGk7QiNuzZtOcbJ8SIvX0qEgtYwAhJPxfi4uwYGgmGmaFg4NfhJWazB1KEQ/z8sQCqf5OO/7NCaXb+Z0F5y9muTZJH/3enycrTPcZQfskL1kOTtix+wtm7IZE+wz+8K+sm/J9+Qm+Zn8um3dStYzz9k/lfz+A1O5ryk=</latexit>
+
+g
+
+<latexit sha1_base64="x2PFw/gXwUPLFaAH8VakCxOPUp4=">AAACUHicbVBNT9wwEJ0slNL0g6U99mKxqtRDtUoQEhyRuMCNVl1A2kQrx5mAhe1E9oSysvI/+mt6pWdu/Se9tc6yldqlT7L89OZ5ZvyKRklHSfIjGqytP9l4uvksfv7i5aut4fbrM1e3VuBE1Kq2FwV3qKTBCUlSeNFY5LpQeF5cH/X18xu0TtbmM80bzDW/NLKSglOQZsPdjPCW/IlxZFvRa+wThg4ODS0srMs0p6ui8lnBrb/tutlwlIyTBdhjki7JCJY4nW1HG1lZi1aHnkJx56Zp0lDuuSUpFHZx1jpsuLjmlzgN1HCNLveLz3XsXVBKVtU2HENsof79wnPt3FwXwdkv6lZrvfjfWun6hivTqTrIvTRNS2jEw/CqVYxq1qfHSmlRkJoHwoWVYX8mrrjlgkLGcZxZNPhF1FpzU/pMdNM09z6zmo3SrotDculqTo/J2e44Tcbpx73R4YdlhpvwFnbgPaSwD4dwDKcwAQFf4RvcwffoPvoZ/RpED9Y/N7yBfzCIfwM1CrUT</latexit>
+
+F0
+<latexit sha1_base64="KiBQV71N2bL50Jj1uTacUWvCEJQ=">AAACKHicbVBNS8NAFNxUrRq/qh69LAbBU0lE0GNBEI8KVgtNKJvNi126uwm7G6WE/A2vevbXeBOv/hI3NQdtHVgYZt7bN0ycc6aN7386raXllfbq2rq7sbm1vdPZ3bvTWaEo9GnGMzWIiQbOJPQNMxwGuQIiYg738eSi9u8fQWmWyVszzSES5EGylFFirBSGgphxnJaX1cgfdTy/68+AF0nQEA81uB7tOu0wyWghQBrKidbDwM9NVBJlGOVQuWGhISd0Qh5gaKkkAnRUzkJX+MgqCU4zZZ80eKb+3iiJ0HoqYjtZh9TzXi3+6yW6/nDuuknPo5LJvDAg6c/xtODYZLhuBSdMATV8agmhitn8mI6JItTY7lw3VCDhiWZCEJmUIa2GQVSWoRLYC6rKtc0F8z0tkruTbuB3g5tTr+c3Ha6hA3SIjlGAzlAPXaFr1EcU5egZvaBX5815dz6cz5/RltPs7KM/cL6+AejfpW4=</latexit>
+
+K2
+
+K1
+
+K3
+
+K4
+
+Text Kernels
+Softmax
+H1
+
+M1
+
+<latexit sha1_base64="JOMQM9u8HvIR7ngUftQ/wccsmYA=">AAACMXicbVDLSgMxFM34rOOr6tJNsAiuyowIuhTcCG4UWit0hpLJ3NZgkhmSO2oZ5lvc6tqvcSdu/QnTx0JbDyQczrkvTpJLYTEIPryFxaXlldXamr++sbm1Xd/ZvbVZYTi0eSYzc5cwC1JoaKNACXe5AaYSCZ3k4WLkdx7BWJHpFg5ziBUbaNEXnKGTevW9COEZy5b76BUYDdJWvXojaAZj0HkSTkmDTHHd2/FWojTjhQKNXDJru2GQY1wyg4JLqPyosJAz/sAG0HVUMwU2LsfXV/TQKSntZ8Y9jXSs/u4ombJ2qBJXqRje21lvJP7rpXY0cGY79s/iUui8QNB8srxfSIoZHcVDU2GAoxw6wrgR7n7K75lhHF2Ivh8Z0PDEM6WYTsuIV90wLsvIKNoIq8p3yYWzOc2T2+NmGDTDm5PGeTDNsEb2yQE5IiE5JefkklyTNuFkSF7IK3nz3r0P79P7mpQueNOePfIH3vcP6Xuo/A==</latexit>
+
+p1
+
+p2
+
+M2
+
+M3
+
+p3 Poses
+<latexit sha1_base64="91gHTs/Kbcm7q63ZDTF3kr+ULN8=">AAACKHicbVDLSsNAFJ34rPFZXboZLIKrkoigS8GNywpWhSaUyeS2Ds4jzNyoJeQ33Orar3Enbv0Sp7ULrR64cDjnvjhZIYXDKPoI5uYXFpeWGyvh6tr6xuZWc/vKmdJy6HIjjb3JmAMpNHRRoISbwgJTmYTr7O5s7F/fg3XC6EscFZAqNtRiIDhDLyUJwiNWHePA1f2tVtSOJqB/STwlLTJFp98MlpLc8FKBRi6Zc704KjCtmEXBJdRhUjooGL9jQ+h5qpkCl1aTp2u675WcDoz1pZFO1J8TFVPOjVTmOxXDWzfrjcV/vdyNF85cx8FJWgldlAiafx8flJKioeNUaC4scJQjTxi3wv9P+S2zjKPPLgwTCxoeuFGK6bxKeN2L06pKrKKtuK5Dn1w8m9NfcnXYjqN2fHHUOo2mGTbILtkjByQmx+SUnJMO6RJOCvJEnslL8Bq8Be/Bx3frXDCd2SG/EHx+AdR3pfY=</latexit>
+
+<latexit sha1_base64="63jpuE/m3WPWMl01L8PiX0SQV5w=">AAACKnicbVC7SsRAFJ34Nr61tBlcBKslEUHLBRtLRVeFTZTJ5EYH5xFmbtQl5D9stfZr7MTWD3F23UJXD1w4nHNfnKyUwmEUvQcTk1PTM7Nz8+HC4tLyyura+rkzleXQ5UYae5kxB1Jo6KJACZelBaYyCRfZ3eHAv7gH64TRZ9gvIVXsRotCcIZeukoQHrE+NQUq9thcr7aidjQE/UviEWmREY6v14KZJDe8UqCRS+ZcL45KTGtmUXAJTZhUDkrG79gN9DzVTIFL6+HbDd32Sk4LY31ppEP150TNlHN9lflOxfDWjXsD8V8vd4OFY9exOEhrocsKQfPv40UlKRo6yIXmwgJH2feEcSv8/5TfMss4+vTCMLGg4YEbpZjO64Q3vTit68Qq2oqbJvTJxeM5/SXnu+04ascne61ONMpwjmySLbJDYrJPOuSIHJMu4cSSJ/JMXoLX4C14Dz6+WyeC0cwG+YXg8wudkabi</latexit>
+
+G1
+
+F1
+
+<latexit sha1_base64="ai7/g5L8UPDbtaX/LT59oJdWTv4=">AAACKHicbVBNSwMxFMxWrXX91qOXYBE8lY0IehQ86FHBVqG7lGz2rQ1NskuSVcqyf8Ornv013qRXf4nZtgetDgSGmffyholzwY0NgonXWFpeaa621vz1jc2t7Z3dvZ7JCs2gyzKR6YeYGhBcQddyK+Ah10BlLOA+Hl3W/v0TaMMzdWfHOUSSPiqeckatk8JQUjuM0/KqGpDBTjvoBFPgv4TMSRvNcTPY9ZphkrFCgrJMUGP6JMhtVFJtORNQ+WFhIKdsRB+h76iiEkxUTkNX+MgpCU4z7Z6yeKr+3CipNGYsYzdZhzSLXi3+6yWm/nDhuk3Po5KrvLCg2Ox4WghsM1y3ghOugVkxdoQyzV1+zIZUU2Zdd74falDwzDIpqUrKkFV9EpVlqCVuk6ryXXNksae/pHfSIUGH3J62L4J5hy10gA7RMSLoDF2ga3SDuoihHL2gV/TmvXsf3qc3mY02vPnOPvoF7+sb7FSlcA==</latexit>
+
+<latexit sha1_base64="IPvFhlL9foBObtEKiW6QIPfFEs8=">AAACL3icbVDLShxBFK3W+EhHkxldZlNkCGQ1dEvALAUXcSMYyKgw3Qy3q+9oMfVoqm7HDE1/Sra69mvEjWSbv7BmnIWOOXDhcM59cYpKSU9Jch+trL5ZW9/YfBu/29p+/6HT3Tn1tnYCB8Iq684L8KikwQFJUnheOQRdKDwrJocz/+wXOi+t+UnTCnMNF0aOpQAK0qjTzQh/U/PdguLH4Ce+HXV6ST+Zg78m6YL02AIno260npVW1BoNCQXeD9OkorwBR1IobOOs9liBmMAFDgM1oNHnzfz3ln8OSsnH1oUyxOfq84kGtPdTXYRODXTpl72Z+F+v9LOFS9dp/C1vpKlqQiOejo9rxcnyWTi8lA4FqWkgIJwM/3NxCQ4EhQjjOHNo8EpYrcGUTSbaYZo3TeY076VtG4fk0uWcXpPTvX6a9NMfX3sHySLDTfaRfWJfWMr22QE7YidswAS7Yn/YNbuJbqO76CH6+9S6Ei1mdtkLRP8eAeYip/E=</latexit>
+
+Goal Masks
+
+<latexit sha1_base64="bK6Sysyo0zWnL8dtSfOhyhhedfI=">AAACKHicbVBNSwMxFMz67frV6tFLsAieykYEPRa89FjBtkJ3KdnsWw0m2SXJKmXZv+FVz/4ab+LVX2K27UFbBwLDzHt5w8S54MYGwZe3srq2vrG5te3v7O7tHzSahwOTFZpBn2Ui03cxNSC4gr7lVsBdroHKWMAwfryu/eETaMMzdWsnOUSS3iueckatk8JQUvsQp2W3GpNxoxW0gynwMiFz0kJz9MZNbyNMMlZIUJYJasyIBLmNSqotZwIqPywM5JQ90nsYOaqoBBOV09AVPnVKgtNMu6csnqq/N0oqjZnI2E3WIc2iV4v/eompP1y4btOrqOQqLywoNjueFgLbDNet4IRrYFZMHKFMc5cfsweqKbOuO98PNSh4ZpmUVCVlyKoRicoy1BK3SFX5rjmy2NMyGZy3SdAmNxetTjDvcAsdoxN0hgi6RB3URT3URwzl6AW9ojfv3fvwPr2v2eiKN985Qn/gff8A7hClcQ==</latexit>
+
+<latexit sha1_base64="2Vd1vjq33ijDmGTKLVf1EeNdRoE=">AAACKHicbVBNSwMxFMxWrXX91qOXYBE8lY0IehQE8ahgq9BdSjb71oYm2SXJKmXZv+FVz/4ab9Krv8Rs24NWBwLDzHt5w8S54MYGwcRrLC2vNFdba/76xubW9s7uXs9khWbQZZnI9ENMDQiuoGu5FfCQa6AyFnAfjy5r//4JtOGZurPjHCJJHxVPOaPWSWEoqR3GaXlVDchgpx10ginwX0LmpI3muBnses0wyVghQVkmqDF9EuQ2Kqm2nAmo/LAwkFM2oo/Qd1RRCSYqp6ErfOSUBKeZdk9ZPFV/bpRUGjOWsZusQ5pFrxb/9RJTf7hw3abnUclVXlhQbHY8LQS2Ga5bwQnXwKwYO0KZ5i4/ZkOqKbOuO98PNSh4ZpmUVCVlyKo+icoy1BK3SVX5rjmy2NNf0jvpkKBDbk/bF8G8wxY6QIfoGBF0hi7QNbpBXcRQjl7QK3rz3r0P79ObzEYb3nxnH/2C9/UN6pilbw==</latexit>
+
+G2
+
+F2
+
+H2
+
+<latexit sha1_base64="/PPwQnSyqTEWTLt+UWBIZkpvYyI=">AAACKHicbVBNS8NAFNz4WeNX1aOXxSB4KokIeix40KOCrYUmlM3mRRd3N2F3o5SQv+FVz/4ab9Krv8RNm4O2DiwMM+/tGybOOdPG9yfO0vLK6tp6a8Pd3Nre2W3v7fd1VigKPZrxTA1iooEzCT3DDIdBroCImMN9/HRZ+/fPoDTL5J0Z5xAJ8iBZyigxVgpDQcxjnJZX1eh01Pb8jj8FXiRBQzzU4Ga056yFSUYLAdJQTrQeBn5uopIowyiHyg0LDTmhT+QBhpZKIkBH5TR0hY+tkuA0U/ZJg6fq742SCK3HIraTdUg979Xiv16i6w/nrpv0IiqZzAsDks6OpwXHJsN1KzhhCqjhY0sIVczmx/SRKEKN7c51QwUSXmgmBJFJGdJqGERlGSqBvaCqXNtcMN/TIumfdgK/E9yeeV2/6bCFDtEROkEBOkdddI1uUA9RlKNX9IbenQ/n0/lyJrPRJafZOUB/4Hz/AO4NpXE=</latexit>
+
+<latexit sha1_base64="ztWhainNo3WlrYsfCPeut4aputI=">AAACKHicbVBNS8NAFNz4WeNXq0cvi0XwVBIR9Fjw0mMF2wpNKJvNS7u4uwm7G6WE/A2vevbXeJNe/SVu2h60dWBhmHlv3zBRxpk2njdzNja3tnd2a3vu/sHh0XG9cdLXaa4o9GjKU/UYEQ2cSegZZjg8ZgqIiDgMoqe7yh88g9IslQ9mmkEoyFiyhFFirBQEgphJlBSdcnQ1qje9ljcHXif+kjTREt1Rw9kJ4pTmAqShnGg99L3MhAVRhlEOpRvkGjJCn8gYhpZKIkCHxTx0iS+sEuMkVfZJg+fq742CCK2nIrKTVUi96lXiv16sqw9XrpvkNiyYzHIDki6OJznHJsVVKzhmCqjhU0sIVczmx3RCFKHGdue6gQIJLzQVgsi4CGg59MOiCJTATb8sXducv9rTOulftXyv5d9fN9vessMaOkPn6BL56Aa1UQd1UQ9RlKFX9IbenQ/n0/lyZovRDWe5c4r+wPn+Ae/JpXI=</latexit>
+
+<latexit sha1_base64="urS1ZYYaAQtBZF50Q4d4YBHBNTI=">AAACKHicbVBNS8NAFNz4WeNX1aOXxSB4KokIeiwI4lHB1kITymbzoou7m7C7UUrI3/CqZ3+NN+nVX+KmzUFbBxaGmff2DRPnnGnj+xNnaXlldW29teFubm3v7Lb39vs6KxSFHs14pgYx0cCZhJ5hhsMgV0BEzOE+frqs/ftnUJpl8s6Mc4gEeZAsZZQYK4WhIOYxTsuranQ6ant+x58CL5KgIR5qcDPac9bCJKOFAGkoJ1oPAz83UUmUYZRD5YaFhpzQJ/IAQ0slEaCjchq6wsdWSXCaKfukwVP190ZJhNZjEdvJOqSe92rxXy/R9Ydz1016EZVM5oUBSWfH04Jjk+G6FZwwBdTwsSWEKmbzY/pIFKHGdue6oQIJLzQTgsikDGk1DKKyDJXAXlBVrm0umO9pkfRPO4HfCW7PvK7fdNhCh+gInaAAnaMuukY3qIcoytErekPvzofz6Xw5k9noktPsHKA/cL5/AOxRpXA=</latexit>
+
+G3
+
+F3
+
+H3
+
+<latexit sha1_base64="HcFm8a7z1eSW+AHwbMRin3rNUro=">AAACKHicbVDLSsNAFJ34rPHV6tLNYBFclUQFXRZc6LKCfUATymRyo4MzkzAzUUrIb7jVtV/jTrr1S5y0XWjrgYHDOffOPZwo40wbz5s4K6tr6xubtS13e2d3b7/eOOjpNFcUujTlqRpERANnErqGGQ6DTAEREYd+9HRd+f1nUJql8t6MMwgFeZAsYZQYKwWBIOYxSoqbcnQ+qje9ljcFXib+nDTRHJ1Rw9kI4pTmAqShnGg99L3MhAVRhlEOpRvkGjJCn8gDDC2VRIAOi2noEp9YJcZJquyTBk/V3xsFEVqPRWQnq5B60avEf71YVx8uXDfJVVgwmeUGJJ0dT3KOTYqrVnDMFFDDx5YQqpjNj+kjUYQa253rBgokvNBUCCLjIqDl0A+LIlACN/2ydG1z/mJPy6R31vK9ln930Wx78w5r6Agdo1Pko0vURreog7qIogy9ojf07nw4n86XM5mNrjjznUP0B873D+/GpXI=</latexit>
+
+<latexit sha1_base64="VDMXHQH4pdq79xyAFWt+aJCg73w=">AAACKHicbVBNS8NAFNzUrxq/qh69LBbBU0lU0GPBi8cK1gpNKJvNS7t0dxN2N0oJ+Rte9eyv8Sa9+kvctD1o68DCMPPevmGijDNtPG/q1NbWNza36tvuzu7e/kHj8OhRp7mi0KUpT9VTRDRwJqFrmOHwlCkgIuLQi8a3ld97BqVZKh/MJINQkKFkCaPEWCkIBDGjKCnuysHloNH0Wt4MeJX4C9JEC3QGh85mEKc0FyAN5UTrvu9lJiyIMoxyKN0g15AROiZD6FsqiQAdFrPQJT6zSoyTVNknDZ6pvzcKIrSeiMhOViH1sleJ/3qxrj5cum6Sm7BgMssNSDo/nuQcmxRXreCYKaCGTywhVDGbH9MRUYQa253rBgokvNBUCCLjIqBl3w+LIlACN/2ydG1z/nJPq+TxouV7Lf/+qtn2Fh3W0Qk6RefIR9eoje5QB3URRRl6RW/o3flwPp0vZzofrTmLnWP0B873D/GCpXM=</latexit>
+
+<latexit sha1_base64="i/9DfG52M59ilH2h2X+kn1ngme4=">AAACKHicbVDLSsNAFJ34rPHV6tLNYBFclUQFXRYEcVnBPqAJZTK50cGZSZiZKCXkN9zq2q9xJ936JU7aLrT1wMDhnHvnHk6UcaaN502cldW19Y3N2pa7vbO7t19vHPR0misKXZryVA0iooEzCV3DDIdBpoCIiEM/erqu/P4zKM1SeW/GGYSCPEiWMEqMlYJAEPMYJcVNOTof1Ztey5sCLxN/Tppojs6o4WwEcUpzAdJQTrQe+l5mwoIowyiH0g1yDRmhT+QBhpZKIkCHxTR0iU+sEuMkVfZJg6fq742CCK3HIrKTVUi96FXiv16sqw8XrpvkKiyYzHIDks6OJznHJsVVKzhmCqjhY0sIVczmx/SRKEKN7c51AwUSXmgqBJFxEdBy6IdFESiBm35ZurY5f7GnZdI7a/ley7+7aLa9eYc1dISO0Sny0SVqo1vUQV1EUYZe0Rt6dz6cT+fLmcxGV5z5ziH6A+f7B+4KpXE=</latexit>
+
+<latexit sha1_base64="HGkYrDnU4w9hNJlrLxvHuN2zSds=">AAACLXicbVDLSsNAFJ34rPHRqks3g0VwVRIRdCm4cSFSwarQhDKZ3NbBmUmYuVFLyJe41bVf40IQt/6G09qFVg9cOJxzX5wkl8JiELx5M7Nz8wuLtSV/eWV1rd5Y37i0WWE4dHgmM3OdMAtSaOigQAnXuQGmEglXye3xyL+6A2NFpi9wmEOs2ECLvuAMndRr1COEByxPhR50zgCrXqMZtIIx6F8STkiTTNDurXsLUZrxQoFGLpm13TDIMS6ZQcElVH5UWMgZv2UD6DqqmQIbl+PPK7rjlJT2M+NKIx2rPydKpqwdqsR1KoY3dtobif96qR0tnLqO/cO4FDovEDT/Pt4vJMWMjqKhqTDAUQ4dYdwI9z/lN8wwji5A348MaLjnmVJMp2XEq24Yl2VkFG2GVeW75MLpnP6Sy71WGLTC8/3mUTDJsEa2yDbZJSE5IEfkhLRJh3BSkEfyRJ69F+/Ve/c+vltnvMnMJvkF7/MLg7enQQ==</latexit>
+
+LingUNet
+
+F4
+
+G4
+<latexit sha1_base64="vY1NxRx3vOUwSBjhiBoSge7W0MY=">AAACKHicbVBNS8NAFNz4WeNX1aOXxSB4KokIeix40KOCrYUmlM3mRRd3N2F3o5SQv+FVz/4ab9Krv8RNm4O2DiwMM+/tGybOOdPG9yfO0vLK6tp6a8Pd3Nre2W3v7fd1VigKPZrxTA1iooEzCT3DDIdBroCImMN9/HRZ+/fPoDTL5J0Z5xAJ8iBZyigxVgpDQcxjnJZX1ehs1Pb8jj8FXiRBQzzU4Ga056yFSUYLAdJQTrQeBn5uopIowyiHyg0LDTmhT+QBhpZKIkBH5TR0hY+tkuA0U/ZJg6fq742SCK3HIraTdUg979Xiv16i6w/nrpv0IiqZzAsDks6OpwXHJsN1KzhhCqjhY0sIVczmx/SRKEKN7c51QwUSXmgmBJFJGdJqGERlGSqBvaCqXNtcMN/TIumfdgK/E9yeeV2/6bCFDtEROkEBOkdddI1uUA9RlKNX9IbenQ/n0/lyJrPRJafZOUB/4Hz/APF/pXM=</latexit>
+
+TURNLEFT TURNLEFT FORWARD
+
+H4
+
+<latexit sha1_base64="56XYm6fy000AlRxJNii0/3IPSDc=">AAACKnicbVC7TsMwFHV4FAhvGFksKiSmKkFIMBaxMIJEaaUmIMe5BQvbiewboIryH6ww8zVsiJUPwWk7QOFIlo7PuS+dJJfCYhB8eDOzc/ONhcUlf3lldW19Y3PrymaF4dDhmcxML2EWpNDQQYESerkBphIJ3eT+tPa7D2CsyPQlDnOIFbvVYiA4QyddRwhPWJ7w+mOrm41m0ApGoH9JOCFNMsH5zabXiNKMFwo0csms7YdBjnHJDAouofKjwkLO+D27hb6jmimwcTk6u6J7TknpIDPuaaQj9WdHyZS1Q5W4SsXwzk57tfivl9p64NR2HBzHpdB5gaD5ePmgkBQzWudCU2GAoxw6wrgR7n7K75hhHF16vh8Z0PDIM6WYTsuIV/0wLsvIKNoMq8p3yYXTOf0lVwetMGiFF4fNdjDJcJHskF2yT0JyRNrkjJyTDuHEkGfyQl69N+/d+/A+x6Uz3qRnm/yC9/UNf7em0Q==</latexit>
+
+Actions
+
+<latexit sha1_base64="ceOBShG5hPFw2ptZ4Hq0Nb63eQI=">AAACKHicbVBNS8NAFNz4WeNXq0cvi0XwVBIR9Fjw0mMF2wpNKJvNS7u4uwm7G6WE/A2vevbXeJNe/SVu2h60dWBhmHlv3zBRxpk2njdzNja3tnd2a3vu/sHh0XG9cdLXaa4o9GjKU/UYEQ2cSegZZjg8ZgqIiDgMoqe7yh88g9IslQ9mmkEoyFiyhFFirBQEgphJlBSdcnQ9qje9ljcHXif+kjTREt1Rw9kJ4pTmAqShnGg99L3MhAVRhlEOpRvkGjJCn8gYhpZKIkCHxTx0iS+sEuMkVfZJg+fq742CCK2nIrKTVUi96lXiv16sqw9XrpvkNiyYzHIDki6OJznHJsVVKzhmCqjhU0sIVczmx
+sha1_base64="ceOBShG5hPFw2ptZ4Hq0Nb63eQI=">AAACKHicbVBNS8NAFNz4WeNXq0cvi0XwVBIR9Fjw0mMF2wpNKJvNS7u4uwm7G6WE/A2vevbXeJNe/SVu2h60dWBhmHlv3zBRxpk2njdzNja3tnd2a3vu/sHh0XG9cdLXaa4o9GjKU/UYEQ2cSegZZjg8ZgqIiDgMoqe7yh88g9IslQ9mmkEoyFiyhFFirBQEgphJlBSdcnQ9qje9ljcHXif+kjTREt1Rw9kJ4pTmAqShnGg99L3MhAVRhlEOpRvkGjJCn8gYhpZKIkCHxTx0iS+sEuMkVfZJg+fq742CCK2nIrKTVUi96lXiv16sqw9XrpvkNiyYzHIDki6OJznHJsVVKzhmCqjhU0sIVczmx3RCFKHGdue6gQIJLzQVgsi4CGg59MOiCJTATb8sXducv9rTOulftXyv5d9fN9vessMaOkPn6BL56Aa1UQd1UQ9RlKFX9IbenQ/n0/lyZovRDWe5c4r+wPn+AfM7pXQ=</latexit>
+
+<latexit sha1_base64="/+SQXrPogU/Oiy+P63M33w8KirI=">AAACKHicbVBNS8NAFNz4WeNX1aOXxSB4KokIeiwI4lHB1kITymbzoou7m7C7UUrI3/CqZ3+NN+nVX+KmzUFbBxaGmff2DRPnnGnj+xNnaXlldW29teFubm3v7Lb39vs6KxSFHs14pgYx0cCZhJ5hhsMgV0BEzOE+frqs/ftnUJpl8s6Mc4gEeZAsZZQYK4WhIOYxTsuranQ2ant+x58CL5KgIR5qcDPac9bCJKOFAGkoJ1oPAz83UUmUYZRD5YaFhpzQJ/IAQ0slEaCjchq6wsdWSXCaKfukwVP190ZJhNZjEdvJOqSe92rxXy/R9Ydz1016EZVM5oUBSWfH04Jjk+G6FZwwBdTwsSWEKmbzY/pIFKHGdue6oQIJLzQTgsikDGk1DKKyDJXAXlBVrm0umO9pkfRPO4HfCW7PvK7fdNhCh+gInaAAnaMuukY3qIcoytErekPvzofz6Xw5k9noktPsHKA/cL5/AO/DpXI=</latexit>
+
+F gure 2 An us ra on for our arch ec ure (Sec on 4) for he ns ruc on urn e and go o he red o drum
+w h a L NG UN ET dep h of m = 4 The ns ruc on x̄ s mapped o x̄ w h an RNN and he n a panorama
+observa on IP o F0 w h a CNN L NG UN ET genera es H1 a v sua represen a on of he goa F rs a sequence
+of convo u ons maps he mage fea ures F0 o fea ure maps F1
+F4 The ex represen a on x̄ s used o
+genera e he kerne s K1
+K4 wh ch are convo ved o genera e he ex -cond oned fea ure maps G1
+G4
+These fea ure maps are de-convo ved o H1
+H4 The goa probab y d s r bu on Pg s compu ed from H1
+The goa oca on s he nferred from he max of Pg G ven g and pt he pose a s ep t he goa mask Mt s
+compu ed and passed n o an RNN ha ou pu s he ac on o execu e
+
+Goal Prediction To predict the goal location
+we generate a probability distribution Pg over
+a feature map F0 generated using convolutions
+from the initial panorama observation IP Each
+element in the probability distribution Pg corresponds to an area in IP Given the instruction
+x̄ and panorama IP we first generate their representations From the panorama IP we generate a feature map F0 = [CNN0 (IP ); Fp ] where
+CNN0 is a two-layer convolutional neural network (CNN; LeCun et al 1998) with rectified
+linear units (ReLU; Nair and Hinton 2010) and
+Fp are positional embeddings 2 The concatenation is along the channel dimension The instruction x̄ = hx1 , · · · xn i is mapped to a sequence
+of hidden states l = LSTMx ( x (x ), l 1 ) i =
+1, . . . , n using a learned embedding function x
+and a long short-term memory (LSTM; Hochreiter and Schmidhuber 1997) RNN LSTMx The
+instruction representation is x̄ = ln
+We generate the probability distribution Pg over
+pixels in F0 using L NG UN ET The architecture
+of L NG UN ET is inspired by the U-N ET image
+generation method (Ronneberger et al 2015) except that the reconstruction phase is conditioned
+on the natural language instruction L NG UN ET
+first applies m convolutional layers to generate a
+sequence of feature maps Fj = CNNj (Fj 1 )
+We gene a e Fp by c ea ng a channe o each de e m n
+s c obse va on used o c ea e he pano ama and se ng a
+he p xe s co espond ng o ha obse va on oca on n he
+pano ama o 1 and a o he s o 0 The numbe o obse va
+ons depends on he agen s came a ang e
+
+j = 1 . . . m where each CNNj is a convolutional
+layer with leaky ReLU non-linearities (Maas et al
+2013) and instance normalization (Ulyanov et al
+2016) The instruction representation x̄ is split
+evenly into m vectors {x̄j }m
+j=1 each is used to
+create a 1 ⇥ 1 kernel Kj = A FF NEj (x̄j ) where
+each A FF NEj is an affine transformation followed
+by normalizing and reshaping For each Fj we
+apply a 2D 1 ⇥ 1 convolution using the text kernel Kj to generate a text-conditioned feature map
+Gj = C ONVOLVE(Kj , Fj ) where C ONVOLVE
+convolves the kernel over the feature map We
+then perform m deconvolutions to generate a sequence of feature maps Hm
+H1 :
+Hm
+Hj
+
+=
+=
+
+D ECONVm (D ROPOUT(Gm ))
+D ECONVj ( Hj+1 Gj )
+
+D ROPOUT is dropout regularization (Srivastava
+et al 2014) and each D ECONVj is a deconvolution operation followed a leaky ReLU nonlinearity and instance norm 3 Finally we generate Pg by applying a softmax to H1 and an additional learned scalar bias term bg to represent
+events where the goal is out of sight For example
+when the agent already stands in the goal position
+and therefore the panorama does not show it
+We use Pg to predict the goal position in the
+environment We first select the goal pixel in F0 as
+the pixel corresponding to the highest probability
+element in Pg We then identify the corresponding
+3D location lg in the environment using backward
+camera projection which is computed given the
+
+2670
+
+D ECONV1 does deconvo u on on y
+
+camera parameters and p1 , the agent pose at the
+beginning of the execution.
+Action Generation Given the predicted goal lg ,
+we generate actions using an RNN. At each time
+step t, given pt , we generate the goal mask Mt ,
+which has the same shape as the observed image
+It . The goal mask Mt has a value of 1 for each
+element that corresponds to the goal location lg in
+It . We do not distinguish between visible or occluded locations. All other elements are set to 0.
+We also maintain an out-of-sight flag ot that is set
+to 1 if (a) lg is not within the agent’s view; or (b)
+the max scoring element in Pg corresponds to bg ,
+the term for events when the goal is not visible in
+IP . Otherwise, ot is set to 0. We compute an action generation hidden state yt with an RNN:
+yt = LSTMA (A FFINEA ([F LAT(Mt ); ot ]), yt
+
+1)
+
+,
+
+where F LAT flattens Mt into a vector, A FFINEA
+is a learned affine transformation with ReLU, and
+LSTMA is an LSTM RNN. The previous hidden
+state yt 1 was computed when generating the previous action, and the RNN is extended gradually
+during execution. Finally, we compute a probability distribution over actions:
+P (at | lg , (I1 , p1 ), . . . , (It , pt )) =
+S OFTMAX(A FFINEp ([yt ;
+
+T (t)]))
+
+,
+
+where T is a learned embedding lookup table
+for the current time (Chaplot et al., 2018) and
+A FFINEp is a learned affine transformation.
+Model Parameters The model parameters ✓ include the parameters of the convolutions CNN0
+and the components of L ING UN ET: CNNj ,
+A FFINEj , and D ECONVj for j = 1, . . . , m.
+In addition we learn two affine transformations
+A FFINEA and A FFINEp , two RNNs LSTMx and
+LSTMA , two embedding functions x and T ,
+and the goal distribution bias term bg . In our experiments (Section 7), all parameters are learned
+without external resources.
+
+5
+
+Learning
+
+Our modeling decomposition enables us to choose
+different learning algorithms for the two parts.
+While reinforcement learning is commonly deployed for tasks that benefit from exploration (e.g.,
+Peters and Schaal, 2008; Mnih et al., 2013), these
+methods require many samples due to their high
+sample complexity. However, when learning with
+natural language, only a relatively small number
+of samples is realistically available. This problem
+
+was addressed in prior work by learning in a contextual bandit setting (Misra et al., 2017) or mixing reinforcement and supervised learning (Xiong
+et al., 2018). Our decomposition uniquely offers
+to tease apart the language understanding problem and address it with supervised learning, which
+generally has lower sample complexity. For action
+generation though, where exploration can be autonomous, we use policy gradient in a contextual
+bandit setting (Misra et al., 2017).
+We assume access to training data with N ex(i) (i)
+(i) is an inamples {(x̄(i) , s1 , sg )}N
+i=1 , where x̄
+(i)
+(i)
+struction, s1 is a start state, and sg is the goal
+state. We train the goal prediction component by
+minimizing the cross-entropy of the predicted distribution with the gold-standard goal distribution.
+The gold-standard goal distribution is a deterministic distribution with probability one at the pixel
+corresponding to the goal location if the goal is in
+the field of view, or probability one at the extra
+out-of-sight position otherwise. The gold location
+(i)
+is the agent’s location in sg . We update the model
+parameters using Adam (Kingma and Ba, 2014).
+We train action generation by maximizing the
+expected immediate reward the agent observes
+while exploring the environment. The objective
+for a single example i and time stamp t is:
+J=
+
+X
+
+a2A
+
+⇡(a | s̃t )R(i) (st , a) + H(⇡(. | s̃t )) ,
+
+where R(i) : S ⇥ A ! R is an example-specific
+reward function, H(·) is an entropy regularization
+term, and is the regularization coefficient. The
+reward function R(i) details are described in details in Appendix B. Roughly speaking, the reward function includes two additive components:
+a problem reward and a shaping term (Ng et al.,
+1999). The problem reward provides a positive reward for successful task completion, and a negative reward for incorrect completion or collision.
+The shaping term is positive when the agent gets
+closer to the goal position, and negative if it is
+moving away. The gradient of the objective is:
+rJ
+
+=
+
+X
+
+a2A
+
+⇡(a | s̃t )r log ⇡(a | s̃t )R(st , a)
++ rH(⇡(. | s̃t ) .
+
+We approximate the gradient by sampling an action using the policy (Williams, 1992), and use the
+(i)
+gold goal location computed from sg . We perform several parallel rollouts to compute gradients
+and update the parameters using Hogwild! (Recht
+et al., 2011) and Adam learning rates.
+
+2671
+
+Dataset Statistic
+Number paragraphs
+Mean instructions per paragraph
+Mean actions per instruction
+Mean tokens per instruction
+Vocabulary size
+
+L ANI
+6,000
+4.7
+24.6
+12.1
+2,292
+
+C HAI
+1,596
+7.70
+54.5
+8.4
+1,018
+
+Table 1: Summary statistics of the two corpora.
+
+6
+6.1
+
+Tasks and Data
+L ANI
+
+The goal of L ANI is to evaluate how well an agent
+can follow navigation instructions. The agent task
+is to follow a sequence of instructions that specify
+a path in an environment with multiple landmarks.
+Figure 1 (left) shows an example instruction.
+The environment is a fenced, square, grass
+field. Each instance of the environment contains between 6–13 randomly placed landmarks,
+sampled from 63 unique landmarks. The agent
+can take four types of discrete actions: FORWARD,
+TURNRIGHT, TURNLEFT, and STOP. The field is
+of size 50⇥50, the distance of the FORWARD action is 1.5, and the turn angle is 15 . The environment simulator is implemented in Unity3D.
+At each time step, the agent performs an action,
+observes a first person view of the environment
+as an RGB image, and receives a scalar reward.
+The simulator provides a socket API to control the
+agent and the environment.
+Agent performance is evaluated using two metrics: task completion accuracy, and stop distance
+error. A task is completed correctly if the agent
+stops within an aerial distance of 5 from the goal.
+We collect a corpus of navigation instructions
+using crowdsourcing. We randomly generate environments, and generate one reference path for
+each environment. To elicit linguistically interesting instructions, reference paths are generated to
+pass near landmarks. We use Amazon Mechanical
+Turk, and split the annotation process to two tasks.
+First, given an environment and a reference path,
+a worker writes an instruction paragraph for following the path. The second task requires another
+worker to control the agent to perform the instructions and simultaneously mark at each point what
+part of the instruction was executed. The recording of the second worker creates the final data of
+segmented instructions and demonstrations. The
+generated reference path is displayed in both tasks.
+The second worker could also mark the paragraph
+as invalid. Both tasks are done from an overhead view of the environment, but workers are instructed to provide instructions for a robot that ob-
+
+[Go around
+the pillar on the right hand side] [and head
+Go around the pillar on the right hand side
+towards
+circling
+around
+itclockwise.
+clockwise.] [When
+andthe
+head boat,
+towards the
+boat, circling
+around it
+you arethe
+facing
+the tree,
+walktowards
+towards it, and
+passthe
+on the
+right on
+hand side,
+you areWhen
+facing
+tree,
+walk
+it, the
+and
+pass
+and the left hand side of the cone. Circle around the cone,
+the right
+hand
+leftright,
+hand side of the cone.
+and then
+walkside,]
+past the[and
+hydrantthe
+on your
+the the tree
+Circle and
+around
+thestump.
+cone,] [and then walk past the hydrant
+Circle around the stump and then stop right behind it.
+on your right,] [and the the tree stump.] [Circle around
+the stump and then stop right behind it.]
+
+Figure 3: Segmented instructions in the L ANI domain.
+The original reference path is marked in red (start) and
+blue (end). The agent, using a drone icon, is placed at
+the beginning of the path. The follower path is coded in
+colors to align to the segmented instruction paragraph.
+
+serves the environment from a first person view.
+Figure 3 shows a reference path and the written
+instruction. This data can be used for evaluating
+both executing
+sequences of instructions and sinCircle around the statue counter clockwise on the right hand side,
+then head towards
+barrel.
+gle instructions
+intheisolation.
+Go past the barrel on the right hand side and head towards the bench,
+the bench on the right side, stopping right before4you get to the
+Tablepassing
+1 shows
+the corpus statistics. Each parawhite fence.
+graph corresponds to a single unique instance of
+the environment. The paragraphs are split into
+train, test, and development, with a 70% / 15% /
+15% split. Finally, we sample 200 single development instructions for qualitative analysis of the
+language challenge the corpus presents (Table 2).
+6.2
+
+C HAI
+
+The C HAI corpus combines both navigation and
+simple manipulation in a complex, simulated
+household environment. We use the C HALET simulator (Yan et al., 2018), a 3D house simulator
+that provides multiple houses, each with multiple rooms. The environment supports moving between rooms, picking and placing objects, and
+opening and closing cabinets and similar containers. Objects can be moved between rooms and
+in and out of containers. The agent observes the
+world in first-person view, and can take five actions: FORWARD, TURNLEFT, TURNRIGHT, STOP,
+and INTERACT. The INTERACT action acts on objects. It takes as argument a 2D position in the
+agent’s view. Agent performance is evaluated with
+two metrics: (a) stop distance, which measures the
+distance of the agent’s final state to the final annotated position; and (b) manipulation accuracy,
+which compares the set of manipulation actions
+
+2672
+
+4
+
+Appendix A provides statistics for related datasets.
+
+Category
+Spatial relations
+between locations
+Conjunctions of two
+more locations
+Temporal coordination
+of sub-goals
+Constraints on the
+shape of trajectory
+
+Count
+L ANI C HAI
+123
+
+52
+
+36
+
+5
+
+65
+
+68
+
+94
+
+0
+
+Co-reference
+
+32
+
+18
+
+Comparatives
+
+2
+
+0
+
+Example
+L ANI: go to the right side of the rock
+C HAI: pick up the cup next to the bathtub and place it on . . .
+L ANI: fly between the mushroom and the yellow cone
+C HAI: . . . set it on the table next to the juice and milk.
+L ANI: at the mushroom turn right and move forward towards the statue
+C HAI: go back to the kitchen and put the glass in the sink.
+L ANI: go past the house by the right side of the apple
+L ANI: turn around it and move in front of fern plant
+C HAI: turn left, towards the kitchen door and move through it.
+L ANI: . . . the small stone closest to the blue and white fences stop
+
+Table 2: Qualitative analysis of the L ANI and C HAI corpora. We sample 200 single development instructions from
+each corpora. For each category, we count how many examples of the 200 contained it and show an example.
+Scenario
+You have several hours before guests begin to arrive for
+a dinner party. You are preparing a wide variety of meat
+dishes, and need to put them in the sink. In addition,
+you want to remove things in the kitchen, and bathroom
+which you don’t want your guests seeing, like the soaps
+in the bathroom, and the dish cleaning items. You can
+put these in the cupboards. Finally, put the dirty dishes
+around the house in the dishwasher and close it.
+Written Instructions
+[In the kitchen, open the cupboard above the sink.] [Put
+the cereal, the sponge, and the dishwashing soap into the
+cupboard above the sink.] [Close the cupboard.] [Pick
+up the meats and put them into the sink.] [Open the dishwasher, grab the dirty dishes on the counter, and put the
+dishes into the dishwasher.]
+
+quest the next sentence. The workers do not see
+the original scenario. Figure 4 shows a scenario
+and the written segmented paragraph. Similar to
+L ANI, C HAI data can be used for studying complete paragraphs and single instructions.
+Table 1 shows the corpus statistics.6 The paragraphs are split into train, test, and development,
+with a 70% / 15% / 15% split. Table 2 shows qualitative analysis of a sample of 200 instructions.
+
+7
+
+Figure 4: Scenario and segmented instruction from the
+C HAI corpus.
+
+to a reference set. When measuring distance, to
+consider the house plan, we compute the minimal
+aerial distance for each room that must be visited.
+Yan et al. (2018) provides the full details of the
+simulator and evaluation. We use five different
+houses, each with up to six rooms. Each room
+contains on average 30 objects. A typical room
+is of size 6⇥6. We set the distance of FORWARD to
+0.1, the turn angle to 90 , and divide the agent’s
+view to a 32⇥32 grid for the INTERACT action.
+We collected a corpus of navigation and manipulation instructions using Amazon Mechanical
+Turk. We created 36 common household scenarios to provide a familiar context to the task.5 We
+use two crowdsourcing tasks. First, we provide
+workers with a scenario and ask them to write instructions. The workers are encouraged to explore
+the environment and interact with it. We then segment the instructions to sentences automatically.
+In the second task, workers are presented with the
+segmented sentences in order and asked to execute
+them. After finishing a sentence, the workers re5
+
+We observed that asking workers to simply write instructions without providing a scenario leads to combinations of
+repetitive instructions unlikely to occur in reality.
+
+Experimental Setup
+
+Method Adaptations for C HAI We apply two
+modifications to our model to support intermediate goal for the C HAI instructions. First,
+we train an additional RNN to predict the sequence of intermediate goals given the instruction only.
+There are two types of goals:
+NAVIGATION, for action sequences requiring
+movement only and ending with the STOP action;
+and INTERACTION, for sequence of movement actions that end with an INTERACT action. For example, for the instruction pick up the red book
+and go to the kitchen, the sequence of goals will
+be hINTERACTION, NAVIGATION, NAVIGATIONi.
+This indicates the agent must first move to the
+object to pick it up via interaction, move to the
+kitchen door, and finally move within the kitchen.
+The process of executing an instruction starts with
+predicting the sequence of goal types. We call our
+model (Section 4) separately for each goal type.
+The execution concludes when the final goal is
+completed. For learning, we create a separate example for each intermediate goal and train the additional RNN separately. The second modification
+is replacing the backward camera projection for
+inferring the goal location with ray casting to iden6
+The number of actions per instruction is given in the
+more fine-grained action space used during collection. To
+make the required number of actions smaller, we use the more
+coarse action space specified.
+
+2673
+
+Method
+S TOP
+R ANDOM WALK
+M OST F REQUENT
+M ISRA 17
+C HAPLOT 18
+Our Approach (OA)
+OA w/o RNN
+OA w/o Language
+OA w/joint
+OA w/oracle goals
+
+L ANI
+SD
+TC
+15.37
+8.20
+14.80
+9.66
+19.31
+2.94
+10.54
+22.9
+9.05
+31.0
+8.65
+35.72
+9.21
+31.30
+10.65 23.02
+11.54 21.76
+2.13
+94.60
+
+C HAI
+SD
+MA
+2.99 37.53
+2.99 28.96
+3.80 37.53
+2.99 32.25
+2.99 37.53
+2.75 37.53
+3.75 37.43
+3.22 37.53
+2.99 36.90
+2.19 41.07
+
+Method
+S TOP
+R ANDOM WALK
+M OST F REQUENT
+M ISRA 17
+C HAPLOT 18
+Our Approach
+
+C HAI
+SD
+MA
+3.59 39.77
+3.59 33.29
+4.36 39.77
+3.59 36.84
+3.59 39.76
+3.34 39.97
+
+Table 4: Performance on the held-out test dataset.
+Method
+C ENTER
+Janner et al. (2018)
+Our Approach
+
+Table 3: Performance on the development data.
+
+tify INTERACTION goals, which are often objects
+that are not located on the ground.
+Baselines We compare our approach against the
+following baselines: (a) S TOP: Agent stops immediately; (b) R ANDOM WALK: Agent samples
+actions uniformly until it exhausts the horizon
+or stops; (c) M OST F REQUENT: Agent takes the
+most frequent action in the data, FORWARD for
+both datasets, until it exhausts the horizon; (d)
+M ISRA 17: the approach of Misra et al. (2017);
+and (e) C HAPLOT 18: the approach of Chaplot
+et al. (2018). We also evaluate goal prediction and
+compare to the method of Janner et al. (2018) and
+a C ENTER baseline, which always predict the center pixel. Appendix C provides baseline details.
+Evaluation Metrics We evaluate using the metrics described in Section 6: stop distance (SD) and
+task completion (TC) for L ANI, and stop distance
+(SD) and manipulation accuracy (MA) for C HAI.
+To evaluate the goal prediction, we report the real
+distance of the predicted goal from the annotated
+goal and the percentage of correct predictions. We
+consider a goal correct if it is within a distance of
+5.0 for L ANI and 1.0 for C HAI. We also report
+human evaluation for L ANI by asking raters if the
+generated path follows the instruction on a Likerttype scale of 1–5. Raters were shown the generated path, the reference path, and the instruction.
+Parameters We use a horizon of 40 for both
+domains. During training, we allow additional
+5 steps to encourage learning even after errors.
+When using intermediate goals in C HAI, the horizon is used for each intermediate goal separately.
+All other parameters and detailed in Appendix D.
+
+8
+
+L ANI
+SD
+TC
+15.18 8.29
+14.63 9.76
+19.14 3.15
+10.23 23.2
+8.78
+31.9
+8.43
+36.9
+
+Results
+
+Tables 3 and 4 show development and test results. Both sets of experiments demonstrate similar trends. The low performance of S TOP, R AN DOM WALK , and M OST F REQUENT demonstrates
+
+L ANI
+Dist
+Acc
+12.0 19.51
+9.61 30.26
+8.67 35.83
+
+C HAI
+Dist Acc
+3.41 19.0
+2.81 28.3
+2.12 40.3
+
+Table 5: Development goal prediction performance.
+We measure distance (Dist) and accuracy (Acc).
+
+the challenges of both tasks, and shows the tasks
+are robust to simple biases. On L ANI, our approach outperforms C HAPLOT 18, improving task
+completion (TC) accuracy by 5%, and both methods outperform M ISRA 17. On C HAI, C HAP LOT 18 and M ISRA 17 both fail to learn, while
+our approach shows an improvement on stop distance (SD). However, all models perform poorly
+on C HAI, especially on manipulation (MA).
+To isolate navigation performance on C HAI, we
+limit our train and test data to instructions that include navigation actions only. The S TOP baseline
+on these instructions gives a stop distance (SD) of
+3.91, higher than the average for the entire data
+as these instructions require more movement. Our
+approach gives a stop distance (SD) of 3.24, a 17%
+reduction of error, significantly better than the 8%
+reduction of error over the entire corpus.
+We also measure human performance on a sample of 100 development examples for both tasks.
+On L ANI, we observe a stop distance error (SD)
+of 5.2 and successful task completion (TC) 63%
+of the time. On C HAI, the human distance error (SD) is 1.34 and the manipulation accuracy is
+100%. The imperfect performance demonstrates
+the inherent ambiguity of the tasks. The gap to
+human performance is still large though, demonstrating that both tasks are largely open problems.
+The imperfect human performance raises questions about automated evaluation. In general,
+we observe that often measuring execution quality with rigid goals is insufficient. We conduct
+a human evaluation with 50 development examples from L ANI rating human performance and
+our approach. Figure 5 shows a histogram of the
+ratings. The mean rating for human followers is
+4.38, while our approach’s is 3.78; we observe
+a similar trend to before with this metric. Using
+
+2674
+
+Category
+Spatial relations
+Location conjunction
+Temporal coordination
+Trajectory constraints
+Co-reference
+Comparatives
+
+Present
+8.75
+10.19
+11.38
+9.56
+12.88
+10.22
+
+Absent
+10.09
+9.05
+8.24
+8.99
+8.59
+9.25
+
+p-value
+.262
+.327
+.015
+.607
+.016
+.906
+
+curve around big rock keeping it to your left .
+
+Table 6: Mean goal prediction error for L ANI instructions with and without the analysis categories we used
+in Table 2. The p-values are from two-sided t-tests
+comparing the means in each row.
+Percentage
+
+60
+
+Human
+Our Approach
+
+40
+20
+0
+1
+
+2
+
+3
+
+4
+
+5
+
+Figure 5: Likert rating histogram for expert human follower and our approach for L ANI.
+
+judgements on our approach, we correlate the human metric with the SD measure. We observe a
+Pearson correlation -0.65 (p=5e-7), indicating that
+our automated metric correlates well with human
+judgment.7 This initial study suggests that our automated evaluation is appropriate for this task.
+Our ablations (Table 3) demonstrate the importance of each of the components of the model.
+We ablate the action generation RNN (w/o RNN),
+completely remove the language input (w/o Language), and train the model jointly (w/joint Learning).8 On C HAI especially, ablations results in
+models that display ineffective behavior. Of the
+ablations, we observe the largest benefit from
+decomposing the learning and using supervised
+learning for the language problem.
+We also evaluate our approach with access to
+oracle goals (Table 3). We observe this improves navigation performance significantly on
+both tasks. However, the model completely fails
+to learn a reasonable manipulation behavior for
+C HAI. This illustrates the planning complexity
+of this domain. A large part of the improvement
+in measured navigation behavior is likely due to
+eliminating much of the ambiguity the automated
+metric often fails to capture.
+Finally, on goal prediction (Table 5), our approach outperforms the method of Janner et al.
+(2018). Figure 6 and Appendix Figure 7 show example goal predictions. In Table 6, we break down
+L ANI goal prediction results for the analysis cate7
+
+We did not observe this kind of clear anti-correlation
+comparing the two results for human performance (Pearson
+correlation of 0.09 and p=0.52). The limited variance in human performance makes correlation harder to test.
+8
+Appendix C provides the details of joint learning.
+
+walk over to the cabinets and open the cabinet doors up
+
+Figure 6: Goal prediction probability maps Pg overlaid
+on the corresponding observed panoramas IP . The top
+example shows a result on L ANI, the bottom on C HAI.
+
+gories we used in Table 2 using the same sample of
+the data. Appendix E includes a similar table for
+C HAI. We observe that our approach finds instructions with temporal coordination or co-reference
+challenging. Co-reference is an expected limitation; with single instructions, the model can not
+resolve references to previous instructions.
+
+9
+
+Discussion
+
+We propose a model for instruction following with
+explicit separation of goal prediction and action
+generation. Our representation of goal prediction
+is easily interpretable, while not requiring the design of logical ontologies and symbolic representations. A potential limitation of our approach is
+cascading errors. Action generation relies completely on the predicted goal and is not exposed
+to the language otherwise. This also suggests a
+second related limitation: the model is unlikely
+to successfully reason about instructions that include constraints on the execution itself. While
+the model may reach the final goal correctly, it is
+unlikely to account for the intermediate trajectory
+constraints. As we show (Table 2), such instructions are common in our data. These two limitations may be addressed by allowing action generation access to the instruction. Achieving this while
+retaining an interpretable goal representation that
+clearly determines the execution is an important
+direction for future work. Another important open
+question concerns automated evaluation, which remains especially challenging when instructions do
+not only specify goals, but also constraints on how
+to achieve them. Our resources provide the platform and data to conduct this research.
+
+Acknowledgments
+This research was supported by NSF (CRII1656998), Schmidt Sciences, and cloud computing credits from Microsoft. We thank John
+Langford, Claudia Yan, Bharath Hariharan, Noah
+Snavely, the Cornell NLP group, and the anonymous reviewers for their advice.
+
+2675
+
+References
+Anne H Anderson, Miles Bader, Ellen Gurman Bard,
+Elizabeth Boyle, Gwyneth Doherty, Simon Garrod,
+Stephen Isard, Jacqueline Kowtko, Jan McAllister,
+Jim Miller, Catherine Sotillo, Henry S. Thompson,
+and Regina Weinert. 1991. The HCRC map task
+corpus. Language and Speech, 34.
+Peter Anderson, Qi Wu, Damien Teney, Jake Bruce,
+Mark Johnson, Niko Sünderhauf, Ian Reid, Stephen
+Gould, and Anton van den Hengel. 2018. Visionand-language navigation: Interpreting visuallygrounded navigation instructions in real environments. In Proceedings of the IEEE Conference on
+Computer Vision and Pattern Recognition.
+Yoav Artzi, Dipanjan Das, and Slav Petrov. 2014.
+Learning compact lexicons for CCG semantic parsing. In Proceedings of the 2014 Conference on Empirical Methods in Natural Language Processing.
+Yoav Artzi and Luke Zettlemoyer. 2013. Weakly supervised learning of semantic parsers for mapping
+instructions to actions. Transactions of the Association of Computational Linguistics, 1.
+Yonatan Bisk, Daniel Marcu, and William Wong. 2016.
+Towards a dataset for human computer communication via grounded language acquisition. In Proceedings of the AAAI Workshop on Symbiotic Cognitive
+Systems.
+Devendra Singh Chaplot, Kanthashree Mysore
+Sathyendra, Rama Kumar Pasumarthi, Dheeraj
+Rajagopal, and Ruslan Salakhutdinov. 2018. Gatedattention architectures for task-oriented language
+grounding.
+David L. Chen and Raymond J. Mooney. 2011. Learning to interpret natural language navigation instructions from observations. In Proceedings of the National Conference on Artificial Intelligence.
+Deborah A Dahl, Madeleine Bates, Michael Brown,
+William Fisher, Kate Hunicke-Smith, David Pallett,
+Christine Pao, Alexander Rudnicky, and Elizabeth
+Shriberg. 1994. Expanding the scope of the ATIS
+task: The ATIS-3 corpus. In Proceedings of the
+workshop on Human Language Technology.
+Abhishek Das, Samyak Datta, Georgia Gkioxari, Stefan Lee, Devi Parikh, and Dhruv Batra. 2018. Embodied question answering. In Proceedings of the
+IEEE Conference on Computer Vision and Pattern
+Recognition.
+Daniel Fried, Ronghang Hu, Volkan Cirik, Anna
+Rohrbach, Jacob Andreas, Louis-Philippe Morency,
+Taylor Berg-Kirkpatrick, Kate Saenko, Dan Klein,
+and Trevor Darrell. 2018. Speaker-follower models for vision-and-language navigation. CoRR,
+abs/1806.02724.
+Daniel Gordon, Aniruddha Kembhavi, Mohammad
+Rastegari, Joseph Redmon, Dieter Fox, and Ali
+
+Farhadi. 2018. Iqa: Visual question answering in interactive environments. In Proceedings of the IEEE
+Conference on Computer Vision and Pattern Recognition.
+Charles T. Hemphill, John J. Godfrey, and George R.
+Doddington. 1990. The ATIS spoken language systems pilot corpus. In Proceedings of the DARPA
+speech and natural language workshop.
+Karl Moritz Hermann, Felix Hill, Simon Green, Fumin
+Wang, Ryan Faulkner, Hubert Soyer, David Szepesvari, Wojciech Czarnecki, Max Jaderberg, Denis
+Teplyashin, Marcus Wainwright, Chris Apps, Demis
+Hassabis, and Phil Blunsom. 2017. Grounded language learning in a simulated 3D world. CoRR,
+abs/1706.06551.
+Sepp Hochreiter and Jürgen Schmidhuber. 1997. Long
+short-term memory. Neural computation, 9.
+Michael Janner, Karthik Narasimhan, and Regina
+Barzilay. 2018.
+Representation learning for
+grounded spatial reasoning. Transactions of the Association for Computational Linguistics, 6.
+Sahar Kazemzadeh, Vicente Ordonez, Mark Matten,
+and Tamara L. Berg. 2014. Referitgame: Referring
+to objects in photographs of natural scenes. In Proceedings of the Conference on Empirical Methods in
+Natural Language Processing.
+Joohyun Kim and Raymond Mooney. 2012. Unsupervised PCFG induction for grounded language learning with highly ambiguous supervision. In Proceedings of the Joint Conference on Empirical Methods
+in Natural Language Processing and Computational
+Natural Language Learning.
+Diederik Kingma and Jimmy Ba. 2014. Adam: A
+method for stochastic optimization. In Proceedings
+of the International Conference on Learning Representations.
+Nikita Kitaev and Dan Klein. 2017. Where is misty?
+interpreting spatial descriptors by modeling regions
+in space. In Proceedings of the Conference on Empirical Methods in Natural Language Processing.
+Chen Kong, Dahua Lin, Mohit Bansal, Raquel Urtasun, and Sanja Fidler. 2014. What are you talking
+about? text-to-image coreference. In Proceedings of
+the IEEE Conference on Computer Vision and Pattern Recognition.
+Jayant Krishnamurthy and T. Kollar. 2013. Jointly
+learning to parse and perceive: Connecting natural
+language to the physical world. Transactions of the
+Association for Computational Linguistics, 1.
+Yann LeCun, Léon Bottou, Yoshua Bengio, and Patrick
+Haffner. 1998. Gradient-based learning applied to
+document recognition. Proceedings of the IEEE, 86.
+
+2676
+
+Andrew L Maas, Awni Y Hannun, and Andrew Y Ng.
+2013. Rectifier nonlinearities improve neural network acoustic models. In Proceedings of the international conference on machine learning.
+James MacGlashan, Monica Babes-Vroman, Marie
+desJardins, Michael L. Littman, Smaranda Muresan,
+S Bertel Squire, Stefanie Tellex, Dilip Arumugam,
+and Lei Yang. 2015. Grounding english commands
+to reward functions. In Robotics: Science and Systems.
+Matthew MacMahon, Brian Stankiewics, and Benjamin Kuipers. 2006. Walk the talk: Connecting
+language, knowledge, action in route instructions.
+In Proceedings of the National Conference on Artificial Intelligence.
+Junhua Mao, Jonathan Huang, Alexander Toshev, Oana
+Camburu, Alan Yuille, and Kevin Murphy. 2016.
+Generation and Comprehension of Unambiguous
+Object Descriptions. In Proceedings of IEEE Conference on Computer Vision and Pattern Recognition.
+Cynthia Matuszek, Nicholas FitzGerald, Luke Zettlemoyer, Liefeng Bo, and Dieter Fox. 2012a. A joint
+model of language and perception for grounded attribute learning. In Proceedings of the International
+Conference on Machine Learning.
+Cynthia Matuszek, Evan Herbst, Luke Zettlemoyer,
+and Dieter Fox. 2012b. Learning to parse natural
+language commands to a robot control system. In
+Proceedings of the International Symposium on Experimental Robotics.
+Hongyuan Mei, Mohit Bansal, and R. Matthew Walter.
+2016. What to talk about and how? selective generation using lstms with coarse-to-fine alignment. In
+Proceedings of the Conference of the North American Chapter of the Association for Computational
+Linguistics: Human Language Technologies.
+Dipendra Misra, John Langford, and Yoav Artzi. 2017.
+Mapping instructions and visual observations to actions with reinforcement learning. In Proceedings
+of the Conference on Empirical Methods in Natural
+Language Processing.
+Dipendra K. Misra, Jaeyong Sung, Kevin Lee, and
+Ashutosh Saxena. 2016. Tell me dave: Contextsensitive grounding of natural language to manipulation instructions. The International Journal of
+Robotics Research, 35.
+Kumar Dipendra Misra, Kejia Tao, Percy Liang, and
+Ashutosh Saxena. 2015. Environment-driven lexicon induction for high-level instructions. In Proceedings of the Annual Meeting of the Association
+for Computational Linguistics and the International
+Joint Conference on Natural Language Processing.
+Volodymyr Mnih, Koray Kavukcuoglu, David Silver,
+Alex Graves, Ioannis Antonoglou, Daan Wierstra,
+and Martin A. Riedmiller. 2013. Playing atari with
+
+deep reinforcement learning. In Advances in Neural
+Information Processing Systems.
+Vinod Nair and Geoffrey E Hinton. 2010. Rectified linear units improve restricted boltzmann machines. In
+Proceedings of the international conference on machine learning.
+Andrew Y. Ng, Daishi Harada, and Stuart J. Russell.
+1999. Policy invariance under reward transformations: Theory and application to reward shaping. In
+Proceedings of the International Conference on Machine Learning.
+Junhyuk Oh, Satinder P. Singh, Honglak Lee, and
+Pushmeet Kohli. 2017. Zero-shot task generalization with multi-task deep reinforcement learning. In
+Proceedings of the international conference on machine learning.
+Jan Peters and Stefan Schaal. 2008. Reinforcement
+learning of motor skills with policy gradients. Neural networks, 21.
+Benjamin Recht, Christopher Re, Stephen Wright, and
+Feng Niu. 2011. Hogwild: A lock-free approach
+to parallelizing stochastic gradient descent. In Advances in Neural Information Processing Systems.
+Olaf Ronneberger, Philipp Fischer, and Thomas Brox.
+2015. U-net: Convolutional networks for biomedical image segmentation. In International Conference on Medical image computing and computerassisted intervention.
+John Schulman, Philipp Moritz, Sergey Levine,
+Michael I. Jordan, and Pieter Abbeel. 2015. Highdimensional continuous control using generalized
+advantage estimation. CoRR, abs/1506.02438.
+Nitish Srivastava, Geoffrey Hinton, Alex Krizhevsky,
+Ilya Sutskever, and Ruslan Salakhutdinov. 2014.
+Dropout: A simple way to prevent neural networks
+from overfitting. The Journal of Machine Learning
+Research, 15.
+Alane Suhr and Yoav Artzi. 2018. Situated mapping
+of sequential instructions to actions with single-step
+reward observation. In Proceedings of the Annual
+Meeting of the Association for Computational Linguistics.
+Richard S. Sutton, Doina Precup, and Satinder P. Singh.
+1998. Intra-option learning about temporally abstract actions. In Proceedings of the international
+conference on machine learning.
+Dmitry Ulyanov, Andrea Vedaldi, and Victor S.
+Lempitsky. 2016. Instance normalization: The
+missing ingredient for fast stylization.
+CoRR,
+abs/1607.08022.
+Ronald J. Williams. 1992. Simple statistical gradientfollowing algorithms for connectionist reinforcement learning. Machine Learning, 8.
+
+2677
+
+Wenhan Xiong, Xiaoxiao Guo, Mo Yu, Shiyu Chang,
+Bowen Zhou, and William Yang Wang. 2018.
+Scheduled policy optimization for natural language
+communication with intelligent agents. In Proceedings of the International Joint Conferences on Artificial Intelligence.
+Claudia Yan, Dipendra Kumar Misra, Andrew Bennett, Aaron Walsman, Yonatan Bisk, and Yoav Artzi.
+2018. Chalet: Cornell house agent learning environment. CoRR, abs/1801.07357.
+Licheng Yu, Patrick Poirson, Shan Yang, Alexander C.
+Berg, and Tamara L. Berg. 2016. Modeling context
+in referring expressions. In Proceedings of the European Conference on Computer Vision.
+
+2678
+
+

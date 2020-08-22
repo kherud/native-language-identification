@@ -1,0 +1,864 @@
+Proceedings of the Thirtieth AAAI Conference on Artificial Intelligence (AAAI-16)
+
+DARI: Distance Metric and Representation
+Integration for Person Veriﬁcation
+Guangrun Wang, Liang Lin∗ , Shengyong Ding, Ya Li and Qing Wang
+School of Data and Computer Science, Sun Yat-sen University, Guangzhou 510006, China
+wanggrun@mail2.sysu.edu.cn, linliang@ieee.org, marcding@163.com,
+liya@gzhu.edu.cn, ericwangqing@gmail.com
+
+
+
+Abstract
+The past decade has witnessed the rapid development of
+feature representation learning and distance metric learning,
+whereas the two steps are often discussed separately. To
+explore their interaction, this work proposes an end-to-end
+learning framework called DARI, i.e. Distance metric And
+Representation Integration, and validates the effectiveness of
+DARI in the challenging task of person veriﬁcation. Given
+the training images annotated with the labels, we ﬁrst produce a large number of triplet units, and each one contains
+three images, i.e. one person and the matched/mismatch references. For each triplet unit, the distance disparity between
+the matched pair and the mismatched pair tends to be maximized. We solve this objective by building a deep architecture of convolutional neural networks. In particular, the Mahalanobis distance matrix is naturally factorized as one top
+fully-connected layer that is seamlessly integrated with other
+bottom layers representing the image feature. The image feature and the distance metric can be thus simultaneously optimized via the one-shot backward propagation. On several
+public datasets, DARI shows very promising performance on
+re-identifying individuals cross cameras against various challenges, and outperforms other state-of-the-art approaches.
+
+
+
+
+
+Figure 1: Typical examples of person veriﬁcation across
+cameras. Each column corresponds to one individual, and
+the large variations exist between the two examples due to
+the light, pose and view point changes.
+
+capturing variety of image appearance and handling complicated nonlinear manifold.
+In this paper, we investigate the possible interaction between feature learning and distance metric learning, and address the very challenging task of person veriﬁcation (i.e.
+matching individuals across cameras). Figure 1 shows some
+examples of this task, where the pedestrians across cameras
+distinctly vary in appearance and structure caused by pose,
+lighting and view angle changes. The proposed framework is
+built based on the convolutional neural network (CNN) (LeCun et al. 1989), which jointly optimizes the human representation as well as the proper distance metric to robustly
+match individuals against various real challenges. We call
+this framework DARI (i.e. Distance metric And Representation Integration).
+We aim at preserving similarity of the same person
+while discriminating the different individuals, and thus deﬁne DARI in the form of maximizing relative distance.
+Speciﬁcally, we organize the training images into triplet
+units, and each unit contains one person image and the
+matched/mismatch references. For all triplet units, the objective of DARI is to maximize the distance disparity between the matched pairs and the mismatched pairs. In particular, DARI seeks optimal solutions for both feature representation and distance metric, while the existing approaches
+of person veriﬁcation (Xu et al. 2013; Liu et al. 2012) focuses on only either of the two components. We adopt the
+deep CNN architecture to extract the discriminative features
+from the input images, where the convolutional layers, maxpooling operators, and one full connection layer are stacked
+
+Introduction
+Distance/similarity measure between images plays a fundamental role in many computer vision applications, e.g., person veriﬁcation (Hirzer et al. 2012), matching heterogeneous
+data (Zhai et al. 2012), and multimedia retrieval (Chechik et
+al. 2012). Conventional Mahalanobis distance metric learning models, which aim to seek a linear transformation by
+pulling the distances between similar pairs while pushing
+the distances between dissimilar pairs, are theoretically appealing in producing discriminative similarity or distance
+measure from the given training data (Weinberger, Blitzer,
+and Saul 2005a). However, these approaches usually are performed in the original data space or the hand-engineered
+feature space (i.e. representation), and thus are limited in
+∗
+
+Corresponding author is Liang Lin. This work is in part
+supported by China 863 Program (Grant no. 2013AA013801),
+in part by Guangdong Natural Science Foundation (Grant no.
+2014A030313201), in part by Guangdong Science and Technology
+Program (Grant no. 2013B010406005 and 2015B010128009).
+c 2016, Association for the Advancement of Artiﬁcial
+Copyright 
+Intelligence (www.aaai.org). All rights reserved.
+
+3611
+
+up. And the Mahalanobis distance matrix is applied with the
+generated feature as the matching metric. Due to the positive semi-deﬁnite requirement for the Mahalanobis metric,
+directly optimizing the metric matrix is computational intensive. We propose to decompose the Mahalanobis matrix
+inspired by (Mignon and Jurie 2012), and further factorize
+the matrix into a fully-connected layer on the top of our
+deep architecture. In this way, the distance metric is seamlessly integrated with the image feature represented by the
+other layers of neural networks. The joint optimization can
+be then efﬁciently achieved via the standard backward propagation. Therefore, by means of the nonlinearity learning
+of deep neural networks, DARI is capable of representing
+the complicated transformation to identify the people in the
+wild.
+To scale up our approach to the large amount of training
+data, we implement the training in a batch-process fashion.
+In each round of training, we randomly select a relatively
+small number (say 60 ∼ 70) of images, and use them to organize the triplet units. By taking the triplets as the inputs,
+we update the model parameters by the stochastic gradient
+descent (SGD) algorithm (LeCun et al. 1998). Another arising issue is that the triplet organization cubically enlarges
+the number (say 4800) of training samples, as one image can
+be included into more than one triplet. To overcome it, we
+calculate the gradients on the images instead of the produced
+triplets, and thus reduce the computation cost by making it
+only depends on the number of the selected images.
+The key contribution of this paper is a novel end-to-end
+framework that naturally fuses the concept of feature learning and metric learning via the deep neural networks. To
+the best of our knowledge, such an approach is original to
+the community. On several challenging benchmarks for person veriﬁcation (e.g., CUHK03 (Li et al. 2014),CUHK01(Li,
+Zhao, and Wang 2012) and iLIDS (Zheng, Gong, and Xiang
+2013)), our DARI framework demonstrates superior performances over other state-of-the-art approaches.
+
+classiﬁer to strengthen the distance function with implicit
+pairwise position dependence.
+On the other hand, deep convolutional models have been
+intensively studied and achieved extremely well performance. Compared with the multiple layer perceptron, CNN
+contains much less parameters to be learned, and can be efﬁciently trained using stochastic gradient descent. With the
+increasing of large scale training data and computational resources, deeper CNN and novel regularization methods had
+been developed, and deep CNN has gained great success
+in many visual recognition tasks, e.g., image classiﬁcation
+(Krizhevsky, Sutskever, and Hinton 2012a), object detection
+(Szegedy, Toshev, and Erhan 2013), and scene labeling (Pinheiro and Collobert 2014).
+Despite the success of deep learning in variety of vision tasks, little studies were conducted on metric learning with deep architecture. Chopra et al. (Chopra, Hadsell,
+and LeCun 2005) suggested a energy-based model (EBM)
+for discriminative similarity metric learning for image pairs.
+Stacked restricted Boltzmann machines (RBMs) had also
+been exploited to learn nonlinear transformation for data
+visualization and supervised embedding (Min et al. 2010).
+Cai et al. (Cai et al. 2010) proposed a deep nonlinear metric
+learning method by combining logistic regression and independent subspace analysis. Hu et al. (Hu, Lu, and Tan 2014)
+adopted the forward multi-layer neural network to learn deep
+metric for hand-crafted features. Compared with these approaches, the proposed DARI model considers the prominence of CNN in capturing salient and incorporates the Mahalanobis distance with the generated image features into
+one optimization target for distance metric and representation integration.
+One approach close to ours was proposed by Wang et
+al. (Wang et al. 2014), which addresses the triplet-based
+similarity learning for image retrieval. However, our work
+have signiﬁcant differences with that work. First, we derive
+our formulation from a novel angle, i.e. integrating feature
+learning and distance metric learning. Second, our learning
+method has advantage in the triplet generation and the batchbased gradient descent learning. Speciﬁcally, given m training triplets containing n distinct images (n << m), their
+algorithm optimizes with 3×m forward and backward propagations, while only n rounds is required for our approach
+because we derive to calculate the gradient over the images.
+Last, our deep architecture is speciﬁcally designed (only two
+conv layers are used) and we train our model from scratch,
+while they utilized the Alex’s model (Krizhevsky, Sutskever,
+and Hinton 2012b) that is pre-trained on the ImageNet.
+
+Related Work
+A number of approaches, e.g., local metric learning and kernelized metric learning, have been suggested to learn multiple or nonlinear metrics from training data with complicated nonlinear manifold structure. In local metric learning, local metrics can be learned independently for each region or by considering the data manifold structure (Noh,
+Zhang, and Lee 2010; Wang, Kalousis, and Woznica 2012;
+Weinberger, Blitzer, and Saul 2005b). In kernelized metric learning, a kernel function is exploited to implicitly
+embed instances into the reproducing kernel Hilbert space
+(RKHS), and a Mahalanobis distance metric is then learned
+in the RKHS space (Wang et al. 2011). Actually, kernelized
+method with Gaussian RBF kernel can also be treated as local learning approach. As pointed out in (Bengio 2009), local learning are also shallow models, and generally are insufﬁcient in coping with highly varying appearance and deformations of images. Another efﬁcient local distance metric
+learning (Yang et al. 2006) was also proposed for classiﬁcation and retrieval. To handle heterogeneous data, (Xiong
+et al. 2012) propose a method using a random forest-based
+
+Framework
+Primal Formulation
+Given a ﬁxed feature representation, metric learning is to
+learn a distance function by satisfying the constraint according to the label information of samples. Here we deﬁne our
+formulation via relative distance comparison based on the
+triplet-based constraint. As is discussed in (Ding et al. 2015),
+the triplet models allows the images of one identity lying on
+a manifold while maximizing the margin between within-
+
+3612
+
+Deep Architecture
+
+
+
+We factorize the metric matrix M into LT L as M satisﬁes
+the positive semi-deﬁnite constraint. The distance measure
+in Eqn. (1) can be then transformed as,
+
+
+
+
+
+
+
+
+
+
+
+
+
+     
+
+
+
+
+
+d2 (Ii , Ij ) = ||LΔFW (Ii , Ij )||2
+
+ 
+
+The objective function H(W, M) in Eqn. (2) can be then
+reformulated with tr(M) = ||L||2H , as
+
+
+
+
+
+    
+
+H(W, L) =
+
+(1)
+
+where ΔFW (Ii , Ij ) = FW (Ii ) − FW (Ij ) denotes the feature difference between the image Ii and Ij . For each training triplet < Ii , Ij , Ik > in T , the desired distance should
+satisfy: d2 (Ii , Ij ) < d2 (Ii , Ik ). Let Δd2 (Ii , Ij , Ik ) denote
+d2 (Ii , Ik ) − d2 (Ii , Ij ), we turn this relative constraints into
+the minimization of the following hinge-loss like objective
+function where λ tr(M) acts as a regularization term as in
+(Shen et al. 2012).
+
+
+H(W+ ) =
+
+to denote
+
+
+
+for no-
+
+∀<Ii ,Ij ,Ik >∈T
+2
+
+tation simplicity. By the deﬁnition of Δd , we get the following objective functions:
+H(W, M) =
+
+
+
+(1 − (ΔFW (Ii , Ik )MΔFW (Ii , Ik )
+
+− ΔFW (Ii , Ij )MΔFW (Ii , Ij )))+ + λ tr(M)
+s.t. M  0
+
+(1 − (||ΔFW+ (Ii , Ik )||2
+
+(5)
+
+Integrating the metric learning and feature learning into
+one CNN network yields several advantages. First, this leads
+to a good property of efﬁcient matching. In particular, for
+each sample stored in a database, we can precomputed its
+feature representation and the corresponding decomposed
+Mahalanobis distance matrix. Then the similarity matching
+in the testing stage can be very fast. Second, it integrates feature learning and metric learning by building an end-to-end
+deep architecture of neural networks.
+As discussed above, our model deﬁned in Eqn. (5) jointly
+handles similarity function learning and feature learning.
+This integration is achieved by building a deep architecture of convolutional neural networks, which is illustrated
+in Figure 2. Our deep architecture is composed of two subnetworks: feature learning sub-network and metric learning
+sub-network. The feature learning sub-network contains two
+convolution-RELU-pooling layers and one fully-connected
+layer. Both the pooling layers are max-pooling operations
+with the size of 3 × 3 and the stride size is set as 3 pixels. The ﬁrst convolutional layer includes 32 kernels of size
+
+(1 − Δd2 (Ii , Ij , Ik ))+ + λtr(M)
+
+
+
+(4)
+
+
+
+− ||ΔFW+ (Ii , Ij )||2 ))+
+
+∀<Ii ,Ij ,Ik >∈T
+
+In the following, we use
+
+(1 − (||LΔFW (Ii , Ik )||2
+
+Thus, we can take M as a linear transform on the output of
+the CNN-based feature representation. In literature, (Weinberger, Blitzer, and Saul 2005a) (Mignon and Jurie 2012)
+also proposed to decompose the Mahalanobis distance matrix for simplifying the distance metric learning. They attempt to pursue a low-dimensional projection in Euclidean
+space which embeds the distance metric while ensuring the
+PSD constraint. However, their solution are complicated requiring additional hypothesis. In this work, we implement
+a fully connected layer to represent L, which is stacked
+over the layers representing image features, making the distance metric tightly combined with the deep neural network.
+Speciﬁcally, we treat L as the neuron weight of the layer,
+and the network can represent LFW (Ii ) by taking FW (Ii )
+as the input. Then, the feature learning and the distance metric can be thus jointly optimized in an end-to-end way.
+In the following, we denote W+ = (W, L) for notation
+simplicity. As the regularization term on L will be automatically implemented by the built-in weight decay mechanisms
+in CNN networks, we neglect this part in the objective function.
+
+class pairs from between-class pairs, and tends to result in
+better tradeoff between adaptability and discriminability.
+More precisely, the relative distance constraint is deﬁned
+with a set of triplet units T = {< Ii , Ij , Ik >}, in which
+< Ii , Ij > is a pair of matched images (images of the same
+individual) and < Ii , Ik > contains two mismatched images
+from the labeled image set I = {Il , yl } with yl denoting the
+label. Let M denote the metric matrix and FW (Ii ) denote
+the feature representations of the ith image learned by the
+feature network with the network parameters W. Then Mahalanobis distance between Ii and Ij using the CNN features
+can be written as follows:
+
+H(W, M) =
+
+
+
+− ||LΔFW (Ii , Ij )||2 ))+ + λ||L||2H
+
+Figure 2: Illustration of our learning formulation. It tends to
+maximize the distance disparity between the matched pair
+and mismatched pair for each triplet, in terms of optimization.
+
+d2 (Ii , Ij ) = ΔFW (Ii , Ij )T MΔFW (Ii , Ij )
+
+(3)
+
+(2)
+
+An intuitive solution to Eqn. (2) is to iteratively optimize
+W and M with either of them ﬁxed. It is, however, computationally expensive, as the PSD projection is necessarily imposed once M is updated to ensure M to be positive
+semi-deﬁnite. In this work, to overcome this issue we propose an uniﬁed solution by incorporating M into the deep
+neural networks.
+
+3613
+
+5 × 5 × 3 with a stride of 2 pixels. The second convolutional
+layer contains 32 ﬁlters of size 5 × 5 × 32 and the ﬁlter stride
+step is set as 1 pixel. A fully-connected layer is followed and
+it outputs a vector of 400 dimensions. We further normalize
+the output vector of this fully-connected layer before it is fed
+to the metric learning sub-network by yi = √xi 2 , where
+
+Algorithm 1 Learning DARI with batch-process
+Input:
+Training images {Ii };
+Output:
+Network Parameters W
+1: while t < T do
+2:
+t ← t + 1;
+3:
+Randomly select a set of classes (persons) from the
+training set;
+4:
+Construct a set of triplets from the selected classes;
+5:
+Calculate the gradient ΔW for the generated triplets
+using Algorithm 2;
+6:
+Wt = Wt−1 − λt ΔW
+7: end while
+
+Σxi
+
+xi , yi denote the value of the ith neuron before and after
+normalization respectively. Accordingly, the back propagation process accounts for the normalization operation using
+the chain rule during calculation of the partial derivatives.
+The metric learning sub-network includes only one fullyconnected layer. The neural layer outputs LFW (Ii ). In this
+way, the distance metric is tightly integrated with the feature
+representations, and they can be jointly optimized during the
+model training.
+
+Parameter Optimization
+
+Learning Algorithm
+
+Under the mini-batch training framework, a key step is to
+calculate the gradient for the triplet set in each iteration. A
+straight method is to calculate the gradient for each triplet
+according to the loss function, and sum these gradients to get
+the overall gradient. But with this approach three separate
+memory units and a network propagation would be needed
+for every triplet. This is inefﬁcient as there will be duplicated network propagation for the same image, recalling that
+for each batch we generate triplets from a known subset of
+images. We now show that there exists an optimized algorithm in which the computational load mainly depends on
+the number of distinct images rather than the number of the
+triplets.
+It would be difﬁcult to write the objective function in Eqn.
+(5) directly as the sum of image-based loss items because it
+takes the following form (for notation simplicity, we use W
+to denote W+ in the rest of the paper):
+
+Given a labeled dataset with M classes (persons) and each
+class has N images, then the number of all possible meaningful triplets is N ∗ (N − 1) ∗ (M − 1) ∗ N ∗ M . Even for
+a dataset of moderate size, it is intractable to load all these
+triplets into the limited memory for the model training. To
+overcome this issue, we apply batch learning to optimize the
+parameters, in which the network parameters are updated by
+the gradient derived only from a small part of all the triplets
+in each iteration.
+
+Batch Process
+In the batch learning process, we need to generate a subset of triplets from all the possible triplets in each iteration.
+The simplest method is to generate triplets randomly. However, this method makes the number of distinct images be approximately three times the number of the generated triplets
+because each triplet contains three images, and the likelihood of two triplets sharing the same image is very low.
+This triplet generation method is very inefﬁcient because
+there are only a few distance constraints placed on the selected images in each iteration. Instead, to capitalize on the
+strength of relative distance comparison model, a more reasonable triplet generation method would be one that satisﬁes
+the two following conditions:
+1. In each iteration, large number of triplets are generated
+from small number of images to ensure the selected images
+can be loaded to the memory while rich distance constraints
+are posed on these images;
+2. When increased numbers of iterations are executed, all
+the possible relative distance constraints between any two
+classes should be considered in the training process.
+These two principles lead to our proposed triplet generation scheme as follows. In each iteration, we select a ﬁxed
+number of classes (persons), and construct the triplets only
+using these selected classes. More precisely, for each image
+in each class, we randomly construct a certain number of
+triplets with the matched reference coming from the same
+class and the mismatched references coming from the remaining selected classes. The complete mini-batch learning
+process is presented in Algorithm 1.
+
+H(W) =
+
+
+
+loss(FW (Ii ), FW (Ij ), FW (Ik ))
+
+Fortunately, because the loss function for a speciﬁc triplet is
+deﬁned by the outputs of the images in this triplet, the total
+loss can also be considered as follows, where {Ii } represents
+the set of all the distinct images in the triplets and m denote
+the size of the distinct images in the triplets.
+
+H(W) = H(FW (I1 ), FW (I2 ), ..., FW (Ii ), ..., FW (Im
+))
+
+By the derivative rule, we have the following equations,
+where W l represents the network parameters, Xil represents
+∂H
+
+the feature maps of the image Ii at the lth layer and ∂W
+l (Ii )
+
+denote the partial derivative derived from image Ii .
+∂H
+∂H ∂Xil
+∂H 
+= Σm
+= Σm
+(Ii )
+i=1
+i=1
+l
+∂W
+∂W l
+∂Xil ∂W l
+
+(6)
+
+∂H ∂Xil+1
+∂H
+=
+l
+∂Xi
+∂Xil+1 ∂Xil
+
+(7)
+
+Eqn. 6 shows that the overall gradient is the sum of the
+image-based terms (image-based gradient). Eqn. 7 shows
+that the partial derivative with respect to the feature maps
+of each image can be calculated recursively. With Eqn. 6
+
+3614
+
+Algorithm 2 Calculating gradients for optimization
+Input:
+Training triplets T = {< Ii , Ij , Ik >};
+Output:
+∂H
+The gradient of network parameters: ΔW = ∂W
+
+1: Collect all the distinct images {Ii } in T
+2: for all Ii do
+3:
+Calculate FW (Ii ) by forward propagation;
+4: end for
+5: for all Ii do
+6:
+partialSum = 0;
+7:
+for all triplet < Ii , Ij , Ik > do
+8:
+if Δd2 (Ii , Ij , Ik ) < 1 then
+9:
+if Ii =Ii then
+10:
+partialSum+ = 2(FW (Ik ) − FW (Ij ))
+11:
+else if Ii =Ij then
+12:
+partialSum− = 2(FW (Ii ) − FW (Ij )
+13:
+else if Ii =Ik then
+14:
+partialSum+ = 2(FW (Ii ) − FW (Ik )
+15:
+end if
+16:
+end if
+17:
+end for
+18:
+Set the partial derivative with respect to the outputs
+using partialSum
+∂H
+19:
+Calculate ∂W
+(Ii ) using back propagation;
+∂H
+20:
+Sum the partial derivative: ΔW+= ∂W
+(Ii );
+21: end for
+
+ing data. We implement our learning algorithm based on the
+Caffe framework, where we revise the data layer and loss
+layer to generate the triplets and apply our loss function. We
+execute the code on a PC with GTX780 GPU and quad-core
+CPU. And stop the training process when there are less than
+10 triplets whose distance constraints are violated, i.e. the
+distance between the matched pair is greater than the distance between the mismatched pair.
+Evaluation Protocol. We adopt the widely used cumulative match curve (CMC) approach (Gray, Brennan, and Tao
+2007) for quantitative evaluation. We follow the standard
+setting to randomly partition each dataset into training set
+and test set without overlap. In each testing, the test set is
+further divided into a gallery set and a probe set without
+overlap for 10 times. A rank n rate is obtained for each time,
+and we use the average rate as the ﬁnal result.
+Component analysis. In order to demonstrate how the
+joint optimization of distance metric with feature representation contributes to performance, we implement a simpliﬁed model for comparison by discarding the distance metric
+learning(i.e. the last neural layer). In this implementation,
+we only optimize CNN-based feature representation by the
+back-propagation method.
+Experiments on CUHK03 Dataset. This benchmark (Li
+et al. 2014) is the largest one up to date, which contains
+14096 images of 1467 pedestrians collected from 5 different pairs of camera views, making it an ideal place for deep
+learning. Each person is observed by two disjoint camera
+views and has an average of 4.8 images in each view. We
+follow the standard setting of using CUHK03 to randomly
+partition this dataset for 10 times without overlap, and a
+training set (including 1367 persons) and a test set (including 100 persons) are obtained. In each testing, the testing set
+is further randomly divided into a gallery set of 100 images
+(i.e. one image per person) and a probe set (including images of individuals from different camera views in contrast
+to the gallery set) without overlap for 10 times.
+We introduce several types of state-of-the-arts in this experiment. First, we adopt Local Distance Metric Learning (LDM) (Guillaumin, Verbeek, and Schmid 2009), the
+learning-to-rank method (RANK) (McFee and Lanckriet
+2010) for comparison, which learn distance metrics based
+on a ﬁxed feature representation. Following their implementation, the handcrafted features of dense color histograms and dense SIFT uniformly sampled from patches
+are adopted. Two methods especially designed for person
+re-identiﬁcation are introduced in this experiment: KISSME
+(Kostinger et al. 2012), eSDC (Zhao, Ouyang, and Wang
+2013). Moreover, we compare with a recently proposed
+deep learning method, DRSCH (Zhang et al. 2015), FPNN
+(Li et al. 2014) and IDLA (Ahmed, Jones, and Marks
+2015). DRSCH (Zhang et al. 2015) learns hashing code
+with regularized similarity for image retrieval and person reidentiﬁcation. FPNN (Li et al. 2014) learns pairs of ﬁlters to
+extract person representation and IDLA (Ahmed, Jones, and
+Marks 2015) is also recently proposed deep learning method
+for person re-identiﬁcation.
+The results are shown in Fig. 3 (a). It is encouraging to
+observe that our approach achieves a new state-of-the-art
+
+and Eqn. 7, the gradients with respect to the network parameters can be obtained by summing the image based gradients
+using the network back propagation algorithm. The central
+premise is that we have computed the partial derivative of
+the output layer’s activation for every image, which can be
+easily obtained from Eqn. 5. Algorithm 2 gives the detailed
+process. This optimized algorithm has two obvious merits:
+1. We can conveniently use exiting deep learning implementations such as Caffe1 to train our model.
+2. The number of network propagation executions can be
+reduced to the number of distinct images in the triplets, a
+crucial advantage for large scale datasets.
+
+Evaluations
+Datasets and Implementation details. We conduct our experiments using three challenging human veriﬁcation datasets,
+i.e. CUHK03(Li et al. 2014), CUHK01(Li, Zhao, and Wang
+2012) and iLIDS(Zheng, Gong, and Xiang 2013) . All the
+images are resized to 250 × 100 for the experiment. The
+weights of the ﬁlters and the full connection parameters are
+initialized from two zero-mean Gaussian distributions with
+standard deviation 0.01 and 0.001 respectively. The bias
+terms were set with the constant 0. During the training, we
+select 60 persons to construct 4800 triplets in each iteration.
+Before feeding to the network, the images are mirrored with
+0.5 probability and cropped to the size 230 × 80 at the center with a small random perturbation to augment the train1
+
+http://caffe.berkeleyvision.org/
+
+3615
+
+1
+
+20.65%FPNN
+54.74%IDLA
+14.17%KISSME
+13.51%LDM
+10.42%RANK
+8.76%eSDC
+55.4% Ours
+45.4%Ours-nj
+21.96%DRSCH
+
+0.6
+0.4
+0.2
+0
+
+identification rate
+
+identification rate
+
+0.8
+
+1
+
+0.8
+
+63.21% L+X
+27.87%FPNN
+65%IDLA
+29.40%KISSME
+26.45%LDM
+22.82%eSDC
+65.95%Ours
+57.7%Ours-nj
+20.61%RANK
+
+0.6
+
+0.4
+
+0.2
+0
+
+10
+
+20
+
+30
+
+40
+
+50
+
+identification rate
+
+1
+
+0.8
+29.6% Adaboost
+31.3% MCC
+27.0% Xing.s
+22.1% PLS
+30.7% L1-norm
+28.4% Bhat.
+36.9% Ours-nj
+42.8% Ours
+
+0.6
+
+0.4
+
+0.2
+0
+
+10
+
+rank
+
+D
+
+20
+
+30
+
+rank
+
+E
+
+40
+
+50
+
+0
+
+5
+
+10
+
+15
+
+20
+
+25
+
+rank
+
+F
+
+Figure 3: Quantitative results on the three datasets: (a) CUHK03, (b) CUHK01 and (c) iLIDS dataset. Our DARI framework
+leads superior performances over existing state-of-the-arts overall. Note that “Ours-nj” represents a simpliﬁed version of our
+model, i.e. discarding the joint optimization of distance metric and CNN-based feature.
+Fig. 3 (c) shows the quantitative results. Our superior performance over other approaches demonstrate the good generalization power of DARI. On the other hand, without incorporating Mahalanobis distance matrix, the performance
+(i.e. “Ours-nj” in ) clearly degenerates from 42.8% to 36.9%,
+which highlights the signiﬁcance of the joint optimization of
+feature representation and distance metric. In the following,
+we further evaluate our approach under different implementation setting on iLIDS.
+Data Augmentation Strategy. We crop the center of
+the images with random perturbation to augment the training data. This mechanism can effectively alleviate the overﬁtting problems. Without this augmentation scheme, the top
+1 performance drop by about 30 percent relatively.
+Triplet Generation Scheme. We compared two generation strategy. In the ﬁrst strategy, we select 60 persons for
+each iteration and only construct 60 triplets for these persons. In the second strategy, we select the same number of
+persons while constructing 4800 triplets for these persons.
+As expected by our analysis, the learning process of the
+ﬁrst strategy is much slower than the second strategy and
+when the learning process of the second strategy converges
+in 7000 iterations, the performance of the ﬁrst strategy only
+achieves about 70 percent of the second strategy.
+
+on CUHK03. Note that without the joint optimization of
+distance metric and representation, the performance (i.e., “
+Ours-nj”) degenerates from 55.4% to 45.4%.
+Experiments on CUHK01 Dataset.
+CUHK01 contains 971 individuals, each of which has two
+samples captured by two disjoint camera views. We partition
+this dataset into a training set and a testing set exactly following (Li et al. 2014)(Ahmed, Jones, and Marks 2015): 100
+persons are used for testing and the remaining 871 persons
+for training. Each person has two images for each view and
+we randomly select one into the gallery set. Single-shot is
+adopted in the evaluation of CMC curve.
+In addition to comparing with the methods adopted in the
+experiment on CUHK03, we introduce a recently proposed
+method which also addresses the interaction of representation learning and metric Learning (denoted as L + X) (Liao
+et al. 2015).
+Fig. 3 (b) shows the comparison of our DARI framework
+with other approaches. DARI achieves a new state of the art,
+with a rank-1 recognition rate of 65.95%. The gain of the
+joint optimization of distance metric and CNN-based feature
+is also clear on this dataset, 65.95% over 57.7%.
+Cross-dataset Evaluation
+The iLIDS dataset (Zheng, Gong, and Xiang 2013) was
+constructed from video images captured in a busy airport arrival hall. It has 119 pedestrians, totaling 479 images. We
+conduct a challenging task, i.e. cross-dataset task using this
+dataset, which accords with the real-world surveillance applications. Speciﬁcally, we randomly split this dataset into
+a gallery set and a probe set: the gallery contains only one
+image of each pedestrian and the remaining images form the
+probe set. Our model is trained on CUHK03 and tested on
+this iLIDS dataset without ﬁne-tuning the parameters.
+We compare our DARI with several existing methods
+such as Xing’s (Xing et al. 2002), and MCC (Globerson and
+Roweis 2005). They all use an ensemble of color histograms
+and texture histograms as the feature representation. Note
+that the results reported by these competing methods are
+generated by a different setting: both of the training and the
+testing data are from this dataset.
+
+Conclusion
+We have presented a novel deep learning framework incorporating Mahalanobis distance matrix with convolutional
+neural networks. In future work, we will extend our approach for larger scale heterogeneous data, thereby exploring new applications.
+
+References
+Ahmed, E.; Jones, M.; and Marks, T. K. 2015. An improved deep learning architecture for person re-identiﬁcation.
+In CVPR. IEEE.
+Bengio, Y. 2009. Learning deep architectures for ai. Foundations and Trends in Machine Learning 2(1):1–127.
+Cai, X.; Wang, C.; Xiao, B.; Chen, X.; and Zhou, J. 2010. Deep
+
+3616
+
+Min, R.; van der Maaten, L.; Yuan, Z.; Bonner, A.; and Zhang,
+Z. 2010. Deep supervised t-distributed embedding. In ICML.
+Noh, Y.-K.; Zhang, B.-T.; and Lee, D. 2010. Generative local
+metric learning for nearest neighbor classiﬁcation. In Lafferty,
+J.; Williams, C.; Shawe-Taylor, J.; Zemel, R.; and Culotta, A.,
+eds., NIPS. 1822–1830.
+Pinheiro, P., and Collobert, R. 2014. Recurrent convolutional
+neural networks for scene labeling. In ICML, 82–90.
+Shen, C.; Kim, J.; Wang, L.; and Van Den Hengel, A. 2012.
+Positive semideﬁnite metric learning using boosting-like algorithms. JMLR 98888(1):1007–1036.
+Szegedy, C.; Toshev, A.; and Erhan, D. 2013. Deep neural networks for object detection. In Burges, C.; Bottou, L.; Welling,
+M.; Ghahramani, Z.; and Weinberger, K., eds., NIPS. Curran
+Associates, Inc. 2553–2561.
+Wang, J.; Do, H. T.; Woznica, A.; and Kalousis, A. 2011.
+Metric learning with multiple kernels. In Shawe-Taylor, J.;
+Zemel, R.; Bartlett, P.; Pereira, F.; and Weinberger, K., eds.,
+NIPS. 1170–1178.
+Wang, J.; Leung, T.; Rosenberg, C.; Wang, J.; Philbin, J.; Chen,
+B.; Wu, Y.; et al. 2014. Learning ﬁne-grained image similarity
+with deep ranking. In CVPR.
+Wang, J.; Kalousis, A.; and Woznica, A. 2012. Parametric
+local metric learning for nearest neighbor classiﬁcation. In
+Pereira, F.; Burges, C.; Bottou, L.; and Weinberger, K., eds.,
+NIPS. 1601–1609.
+Weinberger, K. Q.; Blitzer, J.; and Saul, L. K. 2005a. Distance
+metric learning for large margin nearest neighbor classiﬁcation. In NIPS, 1473–1480.
+Weinberger, K. Q.; Blitzer, J.; and Saul, L. K. 2005b. Distance
+Metric Learning for Large Margin Nearest Neighbor Classiﬁcation. JMLR 10:207–244.
+Xing, E. P.; Jordan, M. I.; Russell, S.; and Ng, A. Y. 2002. Distance metric learning with application to clustering with sideinformation. In NIPS, 505–512.
+Xiong, C.; Johnson, D.; Xu, R.; and Corso, J. J. 2012. Random forests for metric learning with implicit pairwise position
+dependence. In Proceedings of the 18th ACM SIGKDD, 958–
+966. ACM.
+Xu, Y.; Lin, L.; Zheng, W.-S.; and Liu, X. 2013. Human reidentiﬁcation by matching compositional template with cluster
+sampling. In ICCV, 3152–3159. IEEE.
+Yang, L.; Jin, R.; Sukthankar, R.; and Liu, Y. 2006. An efﬁcient algorithm for local distance metric learning. In AAAI,
+volume 2.
+Zhai, D.; Chang, H.; Shan, S.; Chen, X.; and Gao, W. 2012.
+Multiview metric learning with global consistency and local
+smoothness. TIST 3:53:1–22.
+Zhang, R.; Lin, L.; Zhang, R.; Zuo, W.; and Zhang, L. 2015.
+Bit-scalable deep hashing with regularized similarity learning
+for image retrieval. TIP.
+Zhao, R.; Ouyang, W.; and Wang, X. 2013. Unsupervised
+salience learning for person re-identiﬁcation. In CVPR, 3586–
+3593. IEEE.
+Zheng, W.; Gong, S.; and Xiang, T. 2013. Associating groups
+of people. In BMVC. IEEE.
+
+nonlinear metric learning with independent subspace analysis
+for face veriﬁcation. In ACM MM, 749–752.
+Chechik, G.; Sharma, V.; Shalit, U.; and Bengio, S. 2012.
+Large scale online learning of image similarity through ranking. JMLR 11:1109–1135.
+Chopra, S.; Hadsell, R.; and LeCun, Y. 2005. Learning a similarity metric discriminatively, with application to face veriﬁcation. In CVPR, 539–546.
+Ding, S.; Lin, L.; Wang, G.; and Chao, H. 2015. Deep feature learning with relative distance comparison for person reidentiﬁcation. Pattern Recognition.
+Globerson, A., and Roweis, S. T. 2005. Metric learning by
+collapsing classes. In NIPS, 451–458.
+Gray, D.; Brennan, S.; and Tao, H. 2007. Evaluating appearance models for recognition, reacquisition, and tracking. In
+PETS. Citeseer.
+Guillaumin, M.; Verbeek, J.; and Schmid, C. 2009. Is that you?
+metric learning approaches for face identiﬁcation. In ICCV,
+498–505.
+Hirzer, M.; Roth, P. M.; Köstinger, M.; and Bischof, H. 2012.
+Relaxed Pairwise Learned Metric for Person Re-identiﬁcation.
+In ECCV, 780–793.
+Hu, J.; Lu, J.; and Tan, Y.-P. 2014. Discriminative deep metric
+learning for face veriﬁcation in the wild. In CVPR.
+Kostinger, M.; Hirzer, M.; Wohlhart, P.; Roth, P. M.; and
+Bischof, H. 2012. Large scale metric learning from equivalence constraints. In CVPR, 2288–2295. IEEE.
+Krizhevsky, A.; Sutskever, I.; and Hinton, G. E. 2012a. Imagenet classiﬁcation with deep convolutional neural networks.
+In Pereira, F.; Burges, C.; Bottou, L.; and Weinberger, K., eds.,
+NIPS. 1097–1105.
+Krizhevsky, A.; Sutskever, I.; and Hinton, G. E. 2012b. Imagenet classiﬁcation with deep convolutional neural networks.
+In NIPS, 1097–1105.
+LeCun, Y.; Boser, B.; Denker, J.; Henderson, D.; Howard, R.;
+Hubbard, W.; and Jackel, L. 1989. Backpropagation applied to
+handwritten zip code recognition. Neural Computation 1:541–
+551.
+LeCun, Y.; Bottou, L.; Bengio, Y.; and Haffner, P. 1998.
+Gradient-based learning applied to document recognition. Proceedings of the IEEE 86(11):2278–2324.
+Li, W.; Zhao, R.; Xiao, T.; and Wang, X. 2014. Deepreid:
+Deep ﬁlter pairing neural network for person re-identiﬁcation.
+In CVPR, 152–159. IEEE.
+Li, W.; Zhao, R.; and Wang, X. 2012. Human reidentiﬁcation
+with transferred metric learning. In ACCV, 31–44.
+Liao, S.; Hu, Y.; Zhu, X.; and Li, S. Z. 2015. Person reidentiﬁcation by local maximal occurrence representation and
+metric learning. In CVPR. IEEE.
+Liu, C.; Gong, S.; Loy, C. C.; and Lin, X. 2012. Person reidentiﬁcation: what features are important? In ECCV, 391–
+401. Springer.
+McFee, B., and Lanckriet, G. R. 2010. Metric learning to rank.
+In ICML, 775–782.
+Mignon, A., and Jurie, F. 2012. Pcca: A new approach for
+distance learning from sparse pairwise constraints. In CVPR,
+2666–2672. IEEE.
+
+3617
+
+

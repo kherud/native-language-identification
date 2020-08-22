@@ -1,0 +1,783 @@
+Convex Deep Learning via Normalized Kernels
+
+Özlem Aslan
+Dept of Computing Science
+University of Alberta, Canada
+ozlem@cs.ualberta.ca
+
+Xinhua Zhang
+Machine Learning Group
+NICTA and ANU
+xizhang@nicta.com.au
+
+Dale Schuurmans
+Dept of Computing Science
+University of Alberta, Canada
+dale@cs.ualberta.ca
+
+Abstract
+Deep learning has been a long standing pursuit in machine learning, which until
+recently was hampered by unreliable training methods before the discovery of improved heuristics for embedded layer training. A complementary research strategy
+is to develop alternative modeling architectures that admit efficient training methods while expanding the range of representable structures toward deep models. In
+this paper, we develop a new architecture for nested nonlinearities that allows arbitrarily deep compositions to be trained to global optimality. The approach admits
+both parametric and nonparametric forms through the use of normalized kernels
+to represent each latent layer. The outcome is a fully convex formulation that is
+able to capture compositions of trainable nonlinear layers to arbitrary depth.
+
+1
+
+Introduction
+
+Deep learning has recently achieved significant advances in several areas of perceptual computing,
+including speech recognition [1], image analysis and object detection [2, 3], and natural language
+processing [4]. The automated acquisition of representations is motivated by the observation that
+appropriate features make any learning problem easy, whereas poor features hamper learning. Given
+the practical significance of feature engineering, automated methods for feature discovery offer an
+important tool for applied machine learning. Ideally, automatically acquired features capture simple
+but salient aspects of the input distribution, upon which subsequent feature discovery can compose
+increasingly abstract and invariant aspects [5]; an intuition that appears to be well supported by
+recent empirical evidence [6].
+Unfortunately, deep architectures are notoriously difficult to train and, until recently, required significant experience to manage appropriately [7, 8]. Beyond well known problems like local minima
+[9], deep training landscapes also exhibit plateaus [10] that arise from credit assignment problems in
+backpropagation. An intuitive understanding of the optimization landscape and careful initialization
+both appear to be essential aspects of obtaining successful training [11]. Nevertheless, the development of recent training heuristics has improved the quality of feature discovery at lower levels
+in deep architectures. These advances began with the idea of bottom-up, stage-wise unsupervised
+training of latent layers [12, 13] (“pre-training”), and progressed to more recent ideas like dropout
+[14]. Despite the resulting empirical success, however, such advances occur in the context of a
+problem that is known to be NP-hard in the worst case (even to approximate) [15], hence there is no
+guarantee that worst case versus “typical” behavior will not show up in any particular problem.
+Given the recent success of deep learning, it is no surprise that there has been growing interest in
+gaining a deeper theoretical understanding. One key motivation of recent theoretical work has been
+to ground deep learning on a well understood computational foundation. For example, [16] demonstrates that polynomial time (high probability) identification of an optimal deep architecture can be
+achieved by restricting weights to bounded random variates and considering hard-threshold generative gates. Other recent work [17] considers a sum-product formulation [18], where guarantees can
+be made about the efficient recovery of an approximately optimal polynomial basis. Although these
+1
+
+treatments do not cover the specific models that have been responsible for state of the art results,
+they do provide insight into the computational structure of deep learning.
+The focus of this paper is on kernel-based approaches to deep learning, which offer a potentially
+easier path to achieving a simple computational understanding. Kernels [19] have had a significant
+impact in machine learning, partly because they offer flexible modeling capability without sacrificing convexity in common training scenarios [20]. Given the convexity of the resulting training
+formulations, suboptimal local minima and plateaus are eliminated while reliable computational
+procedures are widely available. A common misconception about kernel methods is that they are
+inherently “shallow” [5], but depth is an aspect of how such methods are used and not an intrinsic
+property. For example, [21] demonstrates how nested compositions of kernels can be incorporated
+in a convex training formulation, which can be interpreted as learning over a (fixed) composition of
+hidden layers with infinite features. Other work has formulated adaptive learning of nested kernels,
+albeit by sacrificing convexity [22]. More recently, [23, 24] has considered learning kernel representations of latent clusters, achieving convex formulations under some relaxations. Finally, [25]
+demonstrated that an adaptive hidden layer could be expressed as the problem of learning a latent
+kernel between given input and output kernels within a jointly convex formulation. Although these
+works show clearly how latent kernel learning can be formulated, convex models have remained
+restricted to a single adaptive layer, with no clear paths suggested for a multi-layer extension.
+In this paper, we develop a convex formulation of multi-layer learning that allows multiple latent
+kernels to be connected through nonlinear conditional losses. In particular, each pair of successive layers is connected by a prediction loss that is jointly convex in the adjacent kernels, while
+expressing a non-trivial, non-linear mapping between layers that supports multi-factor latent representations. The resulting formulation significantly extends previous convex models, which have
+only been able to train a single adaptive kernel while maintaining a convex training objective. Additional algorithmic development yields an approach with improved scaling properties over previous
+approaches, although not yet at the level of current deep learning methods. We believe the result
+is the first fully convex training formulation of a deep learning architecture with adaptive hidden
+layers, which demonstrates some useful potential in empirical investigations.
+
+2
+
+Background
+
+To begin, consider a multi-layer conditional model where the input xi is an n
+dimensional feature vector and the output yi ∈ {0, 1}m is a multi-label target
+vector over m labels. For concreteness,
+consider a three-layer model (Figure 1).
+Figure 1: Multi-layer conditional models
+Here, the output of the first hidden layer
+is determined by multiplying the input, xi , with a weight matrix W ∈ Rh×n and passing the result
+through a nonlinear transfer σ1 , yielding φi = σ1 (W xi ). Then, the output of the second layer is
+0
+determined by multiplying the first layer output, φi , with a second weight matrix U ∈ Rh ×h and
+passing the result through a nonlinear transfer σ2 , yielding θi = σ2 (U φi ), etc. The final output is
+0
+then determined via ŷi = σ3 (V θi ), for V ∈ Rm×h . For simplicity, we will set h0 = h.
+The goal of training is to find the weight matrices, W , U , and V , that minimize a training objective
+defined over the training data (with regularization). In particular, we assume the availability of t
+training examples {(xi , yi )}ti=1 , and denote the feature matrix X := (x1 , . . . , xt ) ∈ Rn×t and the
+label matrix Y := (y1 , . . . , yt ) ∈ Rm×t respectively. One of the key challenges for training arises
+from the fact that the latent variables Φ := (φ1 , . . . , φt ) and Θ := (θ1 , . . . , θt ) are unobserved.
+To introduce our main development, we begin with a reconstruction of [25], which proposed a convex formulation of a simpler two-layer model. Although the techniques proposed in that work are
+intrinsically restricted to two layers, we will eventually show how this barrier can be surpassed
+through the introduction of a new tool—normalized output kernels. However, we first need to provide a more general treatment of the three main obstacles to obtaining a convex training formulation
+for multi-layer architectures like Figure 1.
+2.1 First Obstacle: Nonlinear Transfers
+The first key obstacle arises from the presence of the transfer functions, σi , which provide the essential nonlinearity of the model. In classical examples, such as auto-encoders and feed-forward neural
+2
+
+networks, an explicit form for σi is prescribed, e.g. a step or sigmoid function. Unfortunately, the
+imposition of a nonlinear transfer in any deterministic model imposes highly non-convex constraints
+of the form: φi = σ1 (W xi ). This problem is alleviated in nondeterministic models like probabilistic
+networks (PFN) [26] and restricted Boltzman machines (RBMs) [12], where the nonlinear relationship between the output (e.g. φi ) and the linear pre-image (e.g. W xi ) is only softly enforced via
+a nonlinear loss L that measures their discrepancy (see Figure 1). Such an approach was adopted
+by [25], where the values of the hidden layer responses (e.g. φi ) were treated as independent variables whose values are to be optimized in conjunction with the weights. In the present case, if one
+similarly optimizes rather than marginalizes over hidden layer values, Φ and Θ (i.e. Viterbi style
+training), a generalized training objective for a multi-layer architecture (Figure 1) can be expressed:
+2
+2
+2
+min L1 (W X, Φ) + 21 kW k + L2 (U Φ, Θ) + 12 kU k + L3 (V Θ, Y ) + 21 kV k . 1
+(1)
+W,U,V,Φ,Θ
+
+The nonlinear loss L1 bridges the nonlinearity introduced by σ1 , and L2 bridges the nonlinearity
+introduced by σ2 , etc. Importantly, these losses, albeit nonlinear, can be chosen to be convex in their
+first argument; for example, as in standard models like PFNs and RBMs (implicitly). In addition to
+these exponential family models, which have traditionally been the focus of deep learning research,
+continuous latent variable models have also been considered, e.g. rectified linear model [27] and the
+exponential family harmonium. In this paper, like [25], we will use large-margin losses which offer
+additional sparsity and simplifications.
+Unfortunately, even though the overall objective (1) is convex in the weight matrices (W, U, V )
+given (Φ, Θ), it is not jointly convex in all participating variables due to the interaction between the
+latent variables (Φ, Θ) and the weight matrices (W, U, V ).
+2.2
+
+Second Obstacle: Bilinear Interaction
+
+Therefore, the second key obstacle arises from the bilinear interaction between the latent variables
+and weight matrices in (1). To overcome this obstacle, consider a single connecting layer, which
+consists of an input matrix (e.g. Φ) and output matrix (e.g. Θ) and associated weight matrix (e.g. U ):
+2
+min L(U Φ, Θ) + 12 kU k .
+(2)
+U
+By the representer theorem, it follows that the optimal U can be expressed as U = AΦ0 for some
+A ∈ Rm×t . Denote the linear response Z = U Φ = AΦ0 Φ = AK where K = Φ0 Φ is the input
+kernel matrix. Then tr(U U 0 ) = tr(AKA0 ) = tr(AKK † KA0 ) = tr(ZK † Z 0 ), where K † is the
+Moore-Penrose pseudo-inverse (recall KK † K = K and K † KK † = K † ), therefore
+(2) = min L(Z, Θ) + 12 tr(ZK † Z 0 ).
+(3)
+Z
+
+This is essentially the value regularization framework [28]. Importantly, the objective in (3) is jointly
+convex in Z and K, since tr(ZK † Z) is a perspective function [29]. Therefore, although the single
+layer model is not jointly convex in the input features Φ and model parameters U , it is convex in
+the equivalent reparameterization (K, Z) given Θ. This is the technique used by [25] for the output
+layer. Finally note that Z satisfies the constraint Z ∈ Rm×n Φ := {U Φ : U ∈ Rm×n }, which we
+will write as Z ∈ RΦ for convenience. Clearly it is equivalent to Z ∈ RK.
+2.3
+
+Third Obstacle: Joint Input-Output Optimization
+
+The third key obstacle is that each of the latent variables, Φ and Θ, simultaneously serve as the inputs and output targets for successive layers. Therefore, it is necessary to reformulate the connecting
+problem (2) so that it is jointly convex in all three components, U , Φ and Θ; and unfortunately (3) is
+not convex in Θ. Although this appears to be an insurmountable obstacle in general, [25] propose an
+exact reformulation in the case when Θ is boolean valued (consistent with the probabilistic assumptions underlying a PFM or RBM) by assuming the loss function satisfies an additional postulate.
+Postulate 1. L(Z, Θ) can be rewritten as Lu (Θ0 Z, Θ0 Θ) for Lu jointly convex in both arguments.
+Intuitively, this assumption allows the loss to be parameterized in terms of the propensity matrix
+Θ0 Z and the unnormalized output kernel Θ0 Θ (hence the superscript of Lu ). That is, the (i, j)-th
+component of Θ0 Z stands for the linear response value of example j with respect to the label of the
+example i. The j-th column therefore encodes the propensity of example j to all other examples.
+This reparameterization is critical because it bypasses the linear response value, and relies solely on
+The terms kW k2 , kU k2 and kV k2 are regularizers, where the norm is the Frobenius norm. For clarity
+we have omitted the regularization parameters, relative weightings between different layers, and offset weights
+from the model. These components are obviously important in practice, however they play no key role in the
+technical development and removing them greatly simplifies the expressions.
+1
+
+3
+
+the relationship between pairs of examples. The work [25] proposes a particular multi-label prediction loss that satisfies Postulate 1 for boolean target vectors θi ; we propose an alternative below.
+Using Postulate 1 and again letting Z = U Φ, one can then rewrite the objective in (2) as
+2
+Lu (Θ0 U Φ, Θ0 Θ) + 12 kU k . Now if we denote N := Θ0 Θ and S := Θ0 Z = Θ0 U Φ (hence
+0
+S ∈ Θ RΦ = N RK), the formulation can be reduced to the following (see Appendix A):
+(2) = min Lu (S, N ) + 21 tr(K † S 0 N † S).
+(4)
+S
+
+Therefore, Postulate 1 allows (2) to be re-expressed in a form where the objective is jointly convex
+in the propensity matrix S and output kernel N . Given that N is a discrete but positive semidefinite
+matrix, a final relaxation is required to achieve a convex training problem.
+Postulate 2. The domain of N = Θ0 Θ can be relaxed to a convex set preserving sufficient structure.
+Below we will introduce an improved scheme for such relaxation. Although these developments
+support a convex formulation of two-layer model training [25], they appear insufficient for deeper
+models. For example, by applying (3) and (4) to the three-layer model of Figure 1, one obtains
+Lu1 (S1 , N1 )+ 12 tr(K † S10 N1† S1 )+Lu2 (S2 , N2 )+ 12 tr(N1† S20 N2† S2 )+L3 (Z3 , Y )+ 12 tr(Z3 N2† Z30 ),
+where N1 = Φ0 Φ and N2 = Θ0 Θ are two latent kernels imposed between the input and output.
+Unfortunately, this objective is not jointly convex in all variables, since tr(N1† S20 N2† S2 ) is not jointly
+convex in (N1 , S2 , N2 ), hence the approach of [25] cannot extend beyond a single hidden layer.
+
+3
+
+Multi-layer Convex Modeling via Normalized Kernels
+
+Although obtaining a convex formulation for general multi-layer models appears to be a significant
+challenge, progress can be made by considering an alternative approach. The failure of the previous
+development in [25] can be traced back to (2), which eventually causes the coupled, non-convex
+regularization to occur between connected latent kernels. A natural response therefore is to reconsider the original regularization scheme, keeping in mind that the representer theorem must still be
+supported. One such regularization scheme appears has been investigated in the clustering literature
+[30, 31], which suggests a reformulation of the connecting model (2) using value regularization [28]:
+min L(U Φ, Θ) + 21 kΘ0 U k2 .
+(5)
+U
+
+Here kΘ0 U k2 replaces kU k2 from (2). The significance of this reformulation is that it still admits
+the representer theorem, which implies that the optimal U must be of the form U = (ΘΘ0 )† AΦ0
+for some A ∈ Rm×n . Now, since Θ generally has full row rank (i.e. there are more examples than
+labels), one may execute a change of variables A = ΘB. Such a substitution leads to the regularizer
+2
+Θ0 (ΘΘ0 )† ΘBΦ0 , which can be expressed in terms of the normalized output kernel [30]:
+M := Θ0 (ΘΘ0 )† Θ.
+(6)
+0 †
+The term (ΘΘ ) essentially normalizes the spectrum of the kernel Θ0 Θ, and it is obvious that all
+eigen-values of M are either 0 or 1, i.e. M 2 = M [30]. The regularizer can be finally written as
+2
+
+kM BΦ0 k = tr(M BKB 0 M ) = tr(M BKK † KB 0 M ) = tr(SK † S 0 ), where S := M BK. (7)
+It is easy to show S = Θ0 Z = Θ0 U Φ, which is exactly the propensity matrix.
+As before, to achieve a convex training formulation, additional structure must be postulated on the
+loss function, but now allowing convenient expression in terms of normalized latent kernels.
+Postulate 3. The loss L(Z, Θ) can be written as Ln (Θ0 Z, Θ0 (ΘΘ0 )† Θ) where Ln is jointly convex
+in both arguments. Here we write Ln to emphasize the use of normalized kernels.
+Under Postulate 3, an alternative convex objective can be achieved for a local connecting model
+Ln (S, M ) + 21 tr(SK † S 0 ), where S ∈ M RK.
+(8)
+Crucially, this objective is now jointly convex in S, M and K; in comparison to (4), the normalization has removed the output kernel from the regularizer. The feasible region {(S, M, K) : M 
+0, K  0, S ∈ M RK} is also convex (see Appendix B). Applying (8) to the first two layers and (3)
+to the output layer, a fully convex objective for a multi-layer model (e.g., as in Figure 1) is obtained:
+Ln1 (S1 , M1 ) + 12 tr(S1 K † S10 ) + Ln2 (S2 , M2 ) + 21 tr(S2 M1† S20 ) + L3 (Z3 , Y ) + 12 tr(Z3 M2† Z30 ), (9)
+where S1 ∈ M1 RK, S2 ∈ M2 RM1 , and Z3 ∈ RM2 .2 All that remains is to design a convex
+relaxation of the domain of M (for Postulate 2) and to design the loss Ln (for Postulate 3).
+2
+
+Clearly the first layer can still use (4) with an unnormalized output kernel N1 since its input X is observed.
+
+4
+
+Convex Relaxation of the Domain of Output Kernels M
+
+3.1
+
+Clearly from its definition (6), M has a non-convex domain in general. Ideally one should design
+convex relaxations for each domain of Θ. However, M exhibits some nice properties for any Θ:
+M  0, M  I, tr(M ) = tr((ΘΘ0 )† (ΘΘ0 )) = rank(ΘΘ0 ) = rank(Θ).
+(10)
+Here I is the identity matrix, and we also use M  0 to encode M 0 = M . Therefore, tr(M )
+provides a convenient proxy for controlling the rank of the latent representation, i.e. the number of
+hidden nodes in a layer. Given a specified number of hidden nodes h, we may enforce tr(M ) = h.
+The main relaxation introduced here is replacing the eigenvalue constraint λi (M ) ∈ {0, 1} (implied
+by M 2 = M ) with 0 ≤ λi (M ) ≤ 1. Such a relaxation retains sufficient structure to allow, e.g.,
+a 2-approximation of optimal clustering to be preserved even by only imposing spectral constraints
+[30]. Experimental results below further demonstrate that nesting preserves sufficient structure, even
+with relaxation, to capture relationships that cannot be recovered by shallower architectures.
+More refined constraints can be included to better account for the domain of Θ. For example, if Θ
+expresses target values for a multiclass classification (i.e. Θij ∈ {0, 1}, Θ0 1 = 1 where 1 is a vector
+of all one’s), we further have Mij ≥ 0 and M 1 = 1. If Θ corresponds to multilabel classification
+where each example belongs to exactly k (out of the h) labels (i.e. Θ ∈ {0, 1}h×t , Θ0 1 = k1), then
+M can have negative elements, but the spectral constraint M 1 = 1 still holds (see proof in Appendix
+C). So we will choose the domains for M1 and M2 in (9) to consist of the spectral constraints:
+M := {0  M  I : M 1 = 1, tr(M ) = h}.
+(11)
+3.2 A Jointly Convex Multi-label Loss for Normalized Kernels
+An important challenge is to design an appropriate nonlinear loss to connect each layer of the model.
+Rather than conditional log-likelihood in a generative model, [25] introduced the idea of a using
+large margin, multi-label loss between a linear response, z, and a boolean target vector, y ∈ {0, 1}h :
+L̃(z, y) = max(1 − y + k z − 1(y0 z))
+(12)
+where 1 denotes the vector of all 1s. Intuitively this encourages the responses on the active labels,
+y0 z, to exceed k times the response of any inactive label, kzi , by a margin, where the implicit
+nonlinear transfer is a step function. Remarkably, this loss can be shown to satisfy Postulate 1 [25].
+This loss can be easily adapted to the normalized case as follows. We first generalize the notion of
+margin to consider a a “normalized label” (Y Y 0 )† y:
+L(z, y) = max(1 − (Y Y 0 )† y + k z − 1(y0 z))
+To obtain some intuition, consider the multiclass case where k = 1. In this case, Y Y 0 is a diagonal
+matrix whose (i, i)-th element is the number of examples in each class i. Dividing by this number
+allows the margin requirement to be weakened for popular labels, while more focus is shifted to less
+represented labels. For a given set of t paired
+Pinput/output pairs (Z, Y ) the sum of the losses can
+then be compactly expressed as L(Z, Y ) = j L(zj , yj ) = τ (kZ − (Y Y 0 )† Y ) + t − tr(Y 0 Z),
+P
+where τ (Γ) := j maxi Γij . This loss can be shown to satisfy that satisfies Postulate 3:3
+Ln (S, M ) = τ (S − k1 M ) + t − tr(S), where S = Y 0 Z and M = Y 0 (Y Y 0 )† Y.
+(13)
+This loss can be naturally interpreted using the remark following Postulate 1. It encourages that the
+propensity of example j with respect to itself, Sjj , should be higher than its propensity with respect
+to other examples, Sij , by a margin that is defined through the normalized kernel M . However note
+this loss does not correspond to a linear transfer between layers, even in terms of the propensity
+matrix S or normalized output kernel M . As in all large margin methods, the initial loss (12) is a
+convex upper bound for an underlying discrete loss defined with respect to a step transfer.
+
+4
+
+Efficient Optimization
+
+Efficient optimization for the multi-layer model (9) is challenging, largely due to the matrix pseudoinverse. Fortunately, the constraints on M are all spectral, which makes it easier to apply conditional
+gradient (CG) methods [32]. This is much more convenient than the models based on unnormalized
+kernels [25], where the presence of both spectral and non-spectral constraints necessitated expensive
+algorithms such as alternating direction method of multipliers [33].
+A simple derivation extends [25]: τ (kZ − (Y Y 0 )† Y ) = maxΛ:Rm×t :Λ0 1=1 tr(Λ0 (kZ − (Y Y 0 )† Y )) =
++
+maxΩ:Rt×t :Ω0 1=1 k1 tr(Ω0 Y 0 (kZ − (Y Y 0 )† Y )) = τ (Y 0 Z − k1 M ). Here the second equality follows because
++
+0
+for any Λ ∈ Rm×t
+satisfying Λ0 1 = 1, there must be an Ω ∈ Rt×t
++
++ satisfying Ω 1 = 1 and Λ = Y Ω/k.
+3
+
+5
+
+Algorithm 1: Conditional gradient algorithm to optimize f (M1 , M2 ) for M1 , M2 ∈ M.
+1 Initialize M̃1 and M̃2 with some random matrices.
+2 while s = 1, 2, . . . do
+∂
+∂
+f (M̃1 , M̃2 ) and G2 = ∂M
+f (M̃1 , M̃2 ).
+3
+Compute the gradients G1 = ∂M
+1
+2
+s
+s
+4
+Compute the new bases M1 and M2 by invoking oracle (15) with G1 and
+ G2 respectively.
+Ps
+Ps
+i
+i
+5
+Totally corrective update: minα∈∆s ,β∈∆s f
+i=1 αi M1 ,
+i=1 βi M2 .
+6
+
+Set M̃1 =
+
+Ps
+
+i=1
+
+αi M1i and M̃2 =
+
+Ps
+
+i=1
+
+βi M2i ; break if stopping criterion is met.
+
+7 return (M̃1 , M̃2 ).
+
+Denote the objective in (9) as g(M1 , M2 , S1 , S2 , Z3 ). The idea behind our approach is to optimize
+f (M1 , M2 ) :=
+
+min
+
+S1 ∈M1 RK,S2 ∈M2 RM1 ,Z3 ∈RM2
+
+g(M1 , M2 , S1 , S2 , Z3 )
+
+(14)
+
+by CG; see Algorithm 1 for details. We next demonstrate how each step can be executed efficiently.
+Oracle problem in Step 4. This requires solving, given a gradient G (which is real symmetric),
+max tr(−GM ) ⇔
+max
+tr(−G(HM1 H + 1t 110 )), where H = I − 1t 110 . (15)
+M ∈M
+
+0M1 I, tr(M1 )=h−1
+
+Here we used Lemma 1 of [31]. By [34, Theorem 3.4], max0M1 I, tr(M1 )=h−1 tr(−HGHM1 ) =
+Ph−1
+λ ≥ λ ≥ . . . are the leading eigenvalues of −HGH. The maximum is attained
+i=1 λi where
+Ph−1 1 0 2
+at M1 =
+corresponding to λi . The optimal solution to
+i=1 vi vi , where vi is the eigenvector
+Ph−1
+argmaxM ∈M tr(−GM ) can be recovered by i=1 vi vi0 + 1t 110 , which has low rank for small h.
+Totally corrective update in Step 5. This is the most computationally intensive step of CG:
+ Xs
+
+Xs
+min
+f
+αi M1i ,
+βi M2i ,
+(16)
+α∈∆s , β∈∆s
+
+i=1
+
+i=1
+
+where ∆s stands for the s dimensional probability simplex (sum up to 1). If one can solve (16)
+efficiently (which also provides the optimal S1 , S2 , Z3 in (14) for the optimal α and β), then the
+gradient of f can also be obtained easily by Danskin’s theorem (for Step 3 of Algorithm 1). However,
+the totally corrective update is expensive because given α and β, each evaluation of the objective f
+itself requires an optimization over S1 , S2 , and Z3 . Such a nested optimization can be prohibitive.
+A key idea is to show that this totally corrective update can be accomplished with considerably
+improved efficiency through the use of block coordinate descent [35]. Taking into account the
+structure of the solution to the oracle, we denote
+X
+X
+M1 (α) :=
+αi M1i = V1 D(α)V10 , and M2 (β) :=
+βi M2i = V2 D(β)V20 ,
+(17)
+i
+
+i
+
+where D(α) = diag([α1 10h , α2 10h , . . .]0 ) and D(β) = diag([β1 10h , β2 10h , . . .]0 ). Denote
+P (α, β, S1 , S2 , Z3 ) := g (M1 (α), M2 (β), S1 , S2 , Z3 ) .
+
+(18)
+
+Clearly S1 ∈ M1 (α)RK iff S1 = V1 A1 K for some A1 , S2 ∈ M2 (β)RM1 (α) iff S2 = V2 A2 M1 (α)
+for some A2 , and Z3 ∈ RM2 (β) iff Z3 = A3 M2 (β) for some A3 . So (16) is equivalent to
+min
+
+α∈∆s , β∈∆s ,A1 ,A2 ,A3
+
+P (α, β, V1 A1 K, V2 A2 M1 (α), A3 M2 (β))
+= Ln1 (V1 A1 K, M1 (α)) +
++
++
+
+1
+2
+
+tr(V1 A1 KA01 V10 )
+
+Ln2 (V2 A2 M1 (α), M2 (β)) + 21 tr(V2 A2 M1 (α)A02 V20 )
+L3 (A3 M2 (β), Y ) + 21 tr(A3 M2 (β)A03 ).
+
+(19)
+(20)
+(21)
+(22)
+
+Thus we have eliminated all matrix pseudo-inverses. However, it is still expensive because the size
+of Ai depends on t. To simplify further, assume X 0 , V1 and V2 all have full column rank.4 Denote
+B1 = A1 X 0 (note K = X 0 X), B2 = A2 V1 , B3 = A3 V2 . Noting (17), the objective becomes
+4
+This assumption is valid provided the features in X are linearly independent, since the bases (eigenvectors) accumulated through all iterations so far are also independent. The only exception is the eigen-vector
+1
+√
+1. But since α and β lie on a simplex, it always contributes a constant 1t 110 to M1 (α) and M2 (β).
+t
+
+6
+
+R(α, β, B1 , B2 , B3 ) := Ln1 (V1 B1 X, V1 D(α)V10 ) +
++
++
+
+1
+2
+
+tr(V1 B1 B10 V10 )
+
+Ln2 (V2 B2 D(α)V10 , V2 D(β)V20 ) + 12 tr(V2 B2 D(α)B20 V20 )
+L3 (B3 D(β)V20 , Y ) + 21 tr(B3 D(β)B30 ).
+
+(23)
+(24)
+(25)
+
+This problem is much easier to solve, since the size of Bi depends on the number of input features,
+the number of nodes in two latent layers, and the number of output labels. Due to the greedy nature
+of CG, the number of latent nodes is generally low. So we can optimize R by block coordinate
+descent (BCD), i.e. alternating between:
+1. Fix (α, β), and solve (B1 , B2 , B3 ) (unconstrained smooth optimization, e.g. by LBFGS).
+2. Fix (B1 , B2 , B3 ), and solve (α, β) (e.g. by LBFGS with projection to simplex).
+BCD is guaranteed to converge to a critical point when Ln1 , Ln2 and L3 are smooth.5 In practice,
+these losses can be made smooth by, e.g. approximating the max in (13) by a softmax. It is crucial
+to note that although both of the two steps are convex, R is not jointly convex in its variables. So in
+general, this alternating scheme can only produce a stationary point of R. Interestingly, we further
+show that any stationary point must provide a global optimal solution to P in (18).
+Theorem 1. Suppose (α, β, B1 , B2 , B3 ) is a stationary point of R with αi > 0 and βi > 0. Assume
+X 0 , V1 and V2 all have full column rank. Then it must be a globally optimal solution to R, and this
+(α, β) must be an optimal solution to the totally corrective update (16).
+See the proof in Appendix D. It is noteworthy that the conditions αi > 0 and βi > 0 are trivial to
+meet because CG is guaranteed to converge to optimal if αi ≥ 1/s and βi ≥ 1/s at each step s.
+
+5
+
+Empirical Investigation
+
+To investigate the potential of deep versus shallow convex training methods, and global versus local
+training methods, we implemented the approach outlined above for a three-layer model along with
+comparison methods. Below we use CVX3 and CVX2 to refer respectively to three and two-layer
+versions of the proposed model. For comparison, SVM1 refers to a one-layer SVM; and TS1a [37]
+and TS1b [38] refer to one-layer transductive SVMs; NET2 refers to a standard two-layer sigmoid
+neural network with hidden layer size chosen by cross-validation; and LOC3 refers to the proposed
+three-layer model with exact (unrelaxed) with local optimization. In these evaluations, we followed
+a similar transductive set up to that of [25]: a given set of data (X, Y ) is divided into separate
+training and test sets, (XL , YL ) and XU , where labels are only included for the training set. The
+training loss is then only computed on the training data, but the learned kernel matrices span the
+union of data. For testing, the kernel responses on test data are used to predict output labels.
+5.1
+
+Synthetic Experiments
+
+Our first goal was to compare the effective modeling capacity of a three versus two-layer architecture given the convex formulations developed above. In particular, since the training formulation
+involves a convex relaxation of the normalized kernel domain, M in (11), it is important to determine
+whether the representational advantages of a three versus two-layer architecture are maintained. We
+conducted two sets of experiments designed to separate one-layer from two-layer or deeper models,
+and two-layer from three-layer or deeper models. Although separating two from one-layer models
+is straightforward, separating three from two-layer models is a subtler question. Here we considered
+two synthetic settings defined by basic functions over boolean features:
+Parity: y = x1 ⊕ x2 ⊕ . . . ⊕ xn ,
+(26)
+Inner Product: y = (x1 ∧ xm+1 ) ⊕ (x2 ∧ xm+2 ) ⊕ . . . ⊕ (xm ∧ xn ), where m = n2 . (27)
+It is well known that Parity is easily computable by a two-layer linear-gate architecture but cannot
+be approximated by any one-layer linear-gate architecture on the same feature space [39]. The IP
+problem is motivated by a fundamental result in the circuit complexity literature: any small weights
+threshold circuit of depth 2 requires size exp(Ω(n)) to compute (27) [39, 40]. To generate data from
+5
+Technically, for BCD to converge to a critical point, each block optimization needs to have a unique optimal
+solution. To ensure uniqueness, we used a method equivalent to the proximal method in Proposition 7 of [36].
+
+7
+
+Error of CVX3
+
+35
+
+TS1a
+TS1b
+SVM1
+NET2
+CVX2
+LOC3
+CVX3
+
+30
+25
+20
+15
+10
+
+CIFAR
+30.7 ±4.2
+26.0 ±6.5
+33.3 ±1.9
+30.7 ±1.7
+27.7 ±5.5
+36 ±1.7
+23.3 ±0.5
+
+MNIST
+16.3 ±1.5
+16.0 ±2.0
+18.3 ±0.5
+15.3 ±1.7
+12.7 ±3.2
+22.0 ±1.7
+13.0 ±0.3
+
+USPS
+12.7 ±1.2
+11.0 ±1.7
+12.7 ±0.2
+12.7 ±0.4
+9.7 ±3.1
+12.3 ±1.1
+9.0 ±0.9
+
+COIL
+16.0 ±2.0
+20.0 ±3.6
+16.3 ±0.7
+15.3 ±1.4
+14.0 ±3.6
+17.7 ±2.2
+9.0 ±0.3
+
+Letter
+5.7 ±2.0
+5.0 ±1.0
+7.0 ±0.3
+5.3 ±0.5
+5.7 ±2.9
+11.3 ±0.2
+5.7 ±0.2
+
+10 15 20 25 30 35
+Error of CVX2
+
+(a) Synthetic results: Parity data. (b) Real results: Test error % (± stdev) 100/100 labeled/unlabeled.
+50
+Error of CVX3
+
+45
+40
+35
+30
+25
+20
+
+TS1a
+TS1b
+SVM1
+NET2
+CVX2
+LOC3
+CVX3
+
+CIFAR
+32.0 ±2.6
+26.0 ±3.3
+32.3 ±1.6
+30.7 ±0.5
+23.3 ±3.5
+28.2 ±2.3
+19.2 ±0.9
+
+MNIST
+10.7 ±3.1
+10.0 ±3.5
+12.3 ±1.4
+11.3 ±1.3
+8.2 ±0.6
+12.7 ±0.6
+6.8 ±0.4
+
+USPS
+10.3 ±0.6
+11.0 ±1.3
+10.3 ±0.1
+11.2 ±0.5
+7.0 ±1.3
+8.0 ±0.1
+6.2 ±0.7
+
+COIL
+13.7 ±4.0
+18.9 ±2.6
+14.7 ±1.3
+14.5 ±0.6
+8.7 ±3.3
+12.3 ±0.9
+7.7 ±1.1
+
+Letter
+3.8 ±0.3
+4.0 ±0.5
+4.8 ±0.5
+4.3 ±0.1
+4.5 ±0.9
+7.3 ±1.1
+3.0 ±0.2
+
+15
+15 20 25 30 35 40 45 50
+Error of CVX2
+
+(c) Synthetic results: IP data.
+
+(d) Real results: Test error % (± stdev) 200/200 labeled/unlabeled.
+
+Figure 2: Experimental results (synthetic data: larger dots mean repetitions fall on the same point).
+these models, we set the number of input features to n = 8 (instead of n = 2 as in [25]), then
+generate 200 examples for training and 100 examples for testing; for each example, the features xi
+were drawn from {0, 1} with equal probability. Then each xi was corrupted independently by a
+Gaussian noise with zero mean and variance 0.3. The experiments were repeated 100 times, and the
+resulting test errors of the two models are plotted in Figure 2. Figure 2(c) clearly shows that CVX3
+is able to capture the structure of the IP problem much more effectively than CVX2, as the theory
+suggests for such architectures. In almost every repetition, CVX3 yields a lower (often much lower)
+test error than CVX2. Even on the Parity problem (Figure 2(a)), CVX3 generally produces lower
+error, although its advantage is not as significant. This is also consistent with theoretical analysis
+[39, 40], which shows that IP is harder to model than parity.
+5.2
+
+Experiments on Real Data
+
+We also conducted an empirical investigation on some real data sets. Here we tried to replicate
+the results of [25] on similar data sets, USPS and COIL from [41], Letter from [42], MNIST, and
+CIFAR-100 from [43]. Similar to [23], we performed an optimistic model selection for each method
+on an initial sample of t training and t test examples; then with the parameters fixed the experiments
+were repeated 5 times on independently drawn sets of t training and t test examples from the remaining data. The results shown in Table 2(b) and Table 2(d) show that CVX3 is able to systematically
+reduce the test error of CVX2. This suggests that the advantage of deeper modeling does indeed
+arise from enhanced representation ability, and not merely from an enhanced ability to escape local
+minima or walk plateaus, since neither exist in these cases.
+
+6
+
+Conclusion
+
+We have presented a new formulation of multi-layer training that can accommodate an arbitrary
+number of nonlinear layers while maintaining a jointly convex training objective. Accurate learning
+of additional layers, when required, appears to demonstrate a marked advantage over shallower
+architectures, even when models can be trained to optimality. Aside from further improvements
+in algorithmic efficiency, an interesting direction for future investigation is to capture unsupervised
+“stage-wise” training principles via auxiliary autoencoder objectives within a convex framework,
+rather than treating input reconstruction as a mere heuristic training device.
+
+8
+
+References
+[1] G. Dahl, D. Yu, L. Deng, and A. Acero. On the problem of local minima in backpropagation. IEEE Trans.
+ASLP, 20(1):30–42, 2012.
+[2] A. Krizhevsky, A. Sutskever, and G. Hinton. ImageNet classification with deep convolutional neural
+networks. In NIPS. 2012.
+[3] Q. Le, M. Ranzato, R. Monga, M. Devin, G. Corrado, K. Chen, J. Dean, and A. Ng. Building high-level
+features using large scale unsupervised learning. In Proceedings ICML. 2012.
+[4] R. Socher, C. Lin, A. Ng, and C. Manning. Parsing natural scenes and natural language with recursive
+neural networks. In ICML. 2011.
+[5] Y. Bengio. Learning deep architectures for AI. Found. Trends in Machine Learning, 2:1–127, 2009.
+[6] Y. Bengio, A. Courville, and P. Vincent. Representation learning: A review and new perspectives. IEEE
+PAMI, 35(8):1798–1828, 2013.
+[7] G. Tesauro. Temporal difference learning and TD-Gammon. CACM, 38(3), 1995.
+[8] Y. LeCun, B. Boser, J. Denker, D. Henderson, R. Howard, W. Hubbard, and L. Jackel. Backpropagation
+applied to handwritten zip code recognition. Neural Comput., 1:541–551, 1989.
+[9] M. Gori and A. Tesi. On the problem of local minima in backpropagation. IEEE PAMI, 14:76–86, 1992.
+[10] D. Erhan, Y. Bengio, A. Courville, P. Manzagol, and P. Vincent. Why does unsupervised pre-training help
+deep learning? JMLR, 11:625–660, 2010.
+[11] I. Sutskever, J. Martens, G. Dahl, and G. Hinton. On the importance of initialization and momentum in
+deep learning. In ICML. 2013.
+[12] G. Hinton, S. Osindero, and Y. Teh. A fast algorithm for deep belief nets. Neur. Comp., 18(7), 2006.
+[13] P. Vincent, H. L. I. Lajoie, Y. Bengio, and P. Manzagol. Stacked denoising autoencoders: Learning useful
+representations in a deep network with a local denoising criterion. JMLR, 11(3):3371–3408, 2010.
+[14] G. Hinton, N. Srivastava, A. Krizhevsky, A. Sutskever, and R. Salakhutdinov. Improving neural networks
+by preventing co-adaptation of feature detectors, 2012. ArXiv:1207.0580.
+[15] K. Hoeffgen, H. Simon, and K. Van Horn. Robust trainability of single neurons. JCSS, 52:114–125, 1995.
+[16] S. Arora, A. Bhaskara, R. Ge, and T. Ma. Bounds for learning deep representations. In ICML. 2014.
+[17] R. Livni, S. Shalev-Shwartz, and O. Shamir. An algorithm for training polynomial networks, 2014.
+ArXiv:1304.7045v2.
+[18] R. Gens and P. Domingos. Discriminative learning of sum-product networks. In NIPS 25. 2012.
+[19] G. Kimeldorf and G. Wahba. Some results on Tchebycheffian spline functions. JMAA, 33:82–95, 1971.
+[20] B. Schoelkopf and A. Smola. Learning with Kernels. MIT Press, 2002.
+[21] Y. Cho and L. Saul. Large margin classification in infinite neural networks. Neural Comput., 22, 2010.
+[22] J. Zhuang, I. Tsang, and S. Hoi. Two-layer multiple kernel learning. In AISTATS. 2011.
+[23] A. Joulin and F. Bach. A convex relaxation for weakly supervised classifiers. In Proceedings ICML. 2012.
+[24] A. Joulin, F. Bach, and J. Ponce. Multi-class cosegmentation. In Proceedings CVPR. 2012.
+[25] O. Aslan, H. Cheng, D. Schuurmans, and X. Zhang. Convex two-layer modeling. In NIPS. 2013.
+[26] R. Neal. Connectionist learning of belief networks. Artificial Intelligence, 56(1):71–113, 1992.
+[27] V. Nair and G. E. Hinton. Rectified linear units improve restricted Boltzmann machines. In ICML. 2010.
+[28] R. Rifkin and R. Lippert. Value regularization and Fenchel duality. JMLR, 8:441–479, 2007.
+[29] A. Argyriou, T. Evgeniou, and M. Pontil. Convex multi-task feature learning. Mach. Learn., 73, 2008.
+[30] J. Peng and Y. Wei. Approximating k-means-type clustering via semidefinite programming. SIAM J. on
+Optimization, 18:186–205, 2007.
+[31] H. Cheng, X. Zhang, and D. Schuurmans. Convex relaxations of Bregman clustering. In UAI. 2013.
+[32] M. Jaggi. Revisiting Frank-Wolfe: Projection-free sparse convex optimization. In ICML. 2013.
+[33] S. Boyd, N. Parikh, E. Chu, B. Peleato, and J. Eckstein. Distributed optimization and statistical learning
+via the alternating direction method of multipliers. Found. Trends in Machine Learning, 3(1):1–123, 2010.
+[34] M. Overton and R. Womersley. Optimality conditions and duality theory for minimizing sums of the
+largest eigenvalues of symmetric matrices. Mathematical Programming, 62:321–357, 1993.
+[35] F. Dinuzzo, C. S. Ong, P. Gehler, and G. Pillonetto. Learning output kernels with block coordinate descent.
+In ICML. 2011.
+[36] L. Grippoa and M. Sciandrone. On the convergence of the block nonlinear Gauss-Seidel method under
+convex constraints. Operations Research Letters, 26:127–136, 2000.
+[37] V. Sindhwani and S. Keerthi. Large scale semi-supervised linear SVMs. In SIGIR. 2006.
+[38] T. Joachims. Transductive inference for text classification using support vector machines. In ICML. 1999.
+[39] A. Hajnal. Threshold circuits of bounded depth. J. of Computer & System Sciences, 46(2):129–154, 1993.
+[40] A. A. Razborov. On small depth threshold circuits. In Algorithm Theory (SWAT 92). 1992.
+[41] Http://olivier.chapelle.cc/ssl- book/benchmarks.html.
+[42] Http://archive.ics.uci.edu/ml/datasets.
+[43] Http://www.cs.toronto.edu/ kriz/cifar.html.
+
+9
+
+

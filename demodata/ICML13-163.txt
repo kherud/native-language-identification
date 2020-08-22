@@ -1,0 +1,1054 @@
+Multi-Task Learning with
+Gaussian Matrix Generalized Inverse Gaussian Model
+Ming Yang†
+cauchym@zju.edu.cn
+Yingming Li†
+liymn@zju.edu.cn
+Zhongfei (Mark) Zhang
+zhongfei@zju.edu.cn
+Department of Information Science and Electronic Engineering, Zhejiang University, China
+
+Abstract
+In this paper, we study the multi-task learning problem with a new perspective of considering the structure of the residue error matrix
+and the low-rank approximation to the task
+covariance matrix simultaneously. In particular, we first introduce the Matrix Generalized Inverse Gaussian (MGIG) prior and define a Gaussian Matrix Generalized Inverse
+Gaussian (GMGIG) model for low-rank approximation to the task covariance matrix.
+Through combining the GMGIG model with
+the residual error structure assumption, we
+propose the GMGIG regression model for
+multi-task learning. To make the computation tractable, we simultaneously use variational inference and sampling techniques. In
+particular, we propose two sampling strategies for computing the statistics of the MGIG
+distribution. Experiments show that this
+model is superior to the peer methods in regression and prediction.
+
+1. Introduction
+With the research on multiple task learning for decades
+(Thrun, 1996; Caruana, 1997; Baxter, 2000), recent
+years have witnessed the increasing applications of
+multi-task learning in many fields ranging from classification of protein in bioinformatics to event evolution
+in cross media due to its capability of transferring the
+knowledge discovered in one task to the other relevant
+tasks.
+†
+
+Contributed equally
+
+Proceedings of the 30 th International Conference on Machine Learning, Atlanta, Georgia, USA, 2013. JMLR:
+W&CP volume 28. Copyright 2013 by the author(s).
+
+An increasing number of efforts on multi-task learning
+lie in discovering the relationship among the tasks either by directly learning the relatedness of the tasks
+(Xue et al., 2007; Yu et al., 2007; Jacob et al., 2008)
+or by mining the common feature structures shared by
+the tasks (Ando & Zhang, 2005; Zhang et al., 2005;
+Argyriou et al., 2006; Obozinski et al., 2009; Chen
+et al., 2009; Rai & Daumé III, 2010), which is equivalent to estimating a matrix model parameter with its
+rows corresponding to the tasks or its columns corresponding to the features. Therefore, discovering the
+relationship among tasks corresponds to learning the
+relationship among the rows and mining the feature
+structure corresponds to learning the structure of the
+columns.
+Given the variety of configurations of the multi-task
+learning, it is convenient to describe the multi-task
+learning problem as a multiple output regression problem as follows where each task produces an output for
+its corresponding input
+Y =W X + µ1TN + 
+
+(1)
+
+where Y = (y1 , . . . , yN ) ∈ Rd×N is the correspondence matrix of N samples under d tasks; X =
+(x1 , . . . , xN ) ∈ RD×N is the observation matrix of N
+samples with D features. W ∈ Rd×D is the weight
+matrix or regression matrix. µ ∈ Rd is the offset vector for the tasks, 1N is an N -dimension column vector
+with all the elements being 1.  is the residue error matrix with matrix variate normal density (matrix variate
+Gaussian density) Nd,N (0, Σ1 ⊗ Σ2 ). Herein, ⊗ is the
+Kronecker product of two matrices and we employ the
+notation from (Gupta & Nagar, 2000) that Σ1 (d × d)
+and Σ2 (N × N ) are positive definite matrices describing the correlations of rows and columns, respectively.
+Typically, we assume that samples are independent,
+i.e., Σ2 is an identity matrix. Σ1 , however, is required
+to be non-trivial and describes the correlation of the
+tasks in the residue error matrix .
+
+Multi-Task Learning with the GMGIG Model
+
+The regularization method is widely used in multi-task
+learning to discover the relationship among the tasks
+(Evgeniou & Pontil, 2004; Argyriou et al., 2007; Agarwal et al., 2010; Jenatton et al., 2011). Argyriou et
+al. (2006) adopt the `2,1 matrix norm as the penalty
+for the weight matrix to learn the feature structure
+shared across the tasks. Chen et al. (2011) combine
+the nuclear norm and the `p,q norm for W to consider the sparsity of W and the correlation among the
+tasks simultaneously. The above norm penalties focus
+on involving the positive (or zero) correlation among
+the tasks, but fail to establish the negative correlation
+among the tasks.
+To address this issue, Bonilla et al. (2007) model the
+covariance matrix for the tasks by not only the positive
+(or zero) correlation but also the negative correlation
+among the tasks. In this manner, a hierarchical correlated model (Zhang & Yeung, 2010; Zhang & Schneider, 2010) is established for W ; then the problem of
+simultaneously discovering the positive and negative
+correlations among the tasks is reduced to the problem
+of estimating the task covariance matrix of W under
+the various constraints.
+Despite the advantage of the above models on establishing the complete correlation among the tasks, the
+computational complexity increases with the scale of
+the tasks since the covariance matrix of the tasks is
+often learned in a nonparametric manner. To solve
+this problem, Bonilla et al. (2007) resort to a lowrank approximation to the task covariance matrix. Archambeau et al. (2011) adopt this approximation by
+decomposing the weight matrix to the product of the
+projection matrix and the latent matrix. While this
+scheme partially addresses the computational concern,
+it ignores part of the structure to be learned, for example, the residual error structure, which is very important for multiple regression (Breiman & Friedman,
+1997; Kim & Xing, 2010; Rothman et al., 2010; Sohn
+& Kim, 2012).
+In this paper, we propose a Bayesian model to study
+the multi-task learning problem with a new perspective of considering the residual error structure and the
+low-rank approximation to the task covariance matrix
+simultaneously. Instead of a nonparametric modeling, we model the task covariance matrix as a random
+variable with the Matrix Generalized Inverse Gaussian
+(MGIG) prior. This prior is able to degenerate to a
+series of common priors, such as Wishart and inverse
+Wishart prior, either of which is often used as the covariance matrix prior. In particular, a Gaussian Matrix Generalized Inverse Gaussian (GMGIG) model is
+developed first for the low rank structure of the covari-
+
+ance matrices. Then we combine it with the residual
+error structure assumption to obtain the GMGIG regression model for multi-task learning. To estimate
+the parameters in the GMGIG regression model, we
+propose two sampling methods in the inference for numerical estimation on the statistics of the MGIG distribution. Finally, we report experimental evaluations
+for the model, and compare it with the peer methods
+in the literature to demonstrate the effectiveness and
+promise of the GMGIG regression model for multi-task
+learning.
+
+2. MGIG Prior and GMGIG Model
+2.1. MGIG prior
+The MGIG distribution is introduced from the Generalized Inverse Gaussian (GIG) distribution (BarndorffNielsen et al., 1982; Zhang et al., 2012) and is formally proposed by Butler (1998). We denote Sp+ as
+the cone of the p × p positive definite matrices. Let
+Ψ, Φ ∈ Sp+ and ν ∈ R.1 A matrix random variable G ∈ Sp+ is MGIG distributed and is denoted as
+G ∼ MGIG p (Ψ, Φ, ν) if the density of G is
+
+
+1
+1
+|G|ν−(p+1)/2
+−1
+etr
+−
+ΨG
+−
+ΦG
+(2)
+ΦΨ
+ν
+2
+2
+|Ψ
+2 | Bν ( 2 2 )
+where etr(·) , exp Tr(·) is an operator mapping a matrix to the exponent of its trace. Bν (·) is the matrix Bessel function defined by (Herz, 1955). The
+MGIG distribution can easily degenerate to Wishart
+distribution and inverse Wishart distribution. In 1dimension case, Bν (·) degenerates to Matérn class
+function2 (Stein, 1999) and the MGIG distribution degenerates to the GIG distribution, further to Γ distribution, inverse Γ distribution, etc.
+In light of the flexibility of the MGIG distribution,
+we are able to mix a probabilistic model with MGIG
+prior and obtain various posterior densities, making
+the regression and prediction more robust.
+2.2. GMGIG model
+We intend to assign the MGIG prior to the covariance
+matrices of the weight matrix W accommodating data
+with various characteristics. Hence, we define a statistical model to describe the relationship between the
+parameters.
+1
+Ψ and Φ can be positive semidefinite according to the
+value of ν (Butler, 1998).
+2
+For p = 1, we have B−ν (z 2 /4) = 21−ν z ν Kν (z). Kν (·)
+is the modified Bessel function of the second kind and the
+right hand side of the above equation belongs to Matérn
+class function when ν > 0.
+
+Multi-Task Learning with the GMGIG Model
+
+Definition. Define matrices W ∈ Rd×D , V, V0 ∈
+Rd×K , Z, Z0 ∈ RK×D , Ω, Ψ1 , Φ1 ∈ SD
++ , and Σ, Ψ2 , Φ2
+∈ Sd+ . The GMGIG model is a series of dependent
+random variables satisfying that
+W ∼Nd,D (V Z, Σ ⊗ Ω)
+
+The reason to highlight the MGH distribution is that it
+contains a family of the distributions including matrix
+variate T distribution, matrix Laplacian distribution,
+matrix Bessel distribution, and multivariate Pearson
+type VII distribution. We list two typical degenerations of the MGH distribution:
+
+V ∼Nd,K (V0 , Σ ⊗ κ1 IK )
+Z ∼NK,D (Z0 , κ2 IK ⊗ Ω)
+Ω ∼MGIG D (Ψ1 , Φ1 , ν1 )
+Σ ∼MGIG d (Ψ2 , Φ2 , ν2 )
+where κ1 , κ2 > 0 and ν1 , ν2 ∈ R.
+In the definition above, W follows matrix variate
+Gaussian distribution and its covariance matrices follow MGIG distribution; that is why we call it GMGIG
+model. The mean of W is decomposed into the product of the projection matrix V and the latent matrix Z
+with K(< D) high relevance directions (Rasmussen &
+Williams, 2006). Through this decomposition, we are
+able to obtain a low-rank approximation to the covariance matrices. The GMGIG model can easily degenerate to Gaussian Inverse Wishart (GIW) model (Le &
+Zidek, 2006) by setting κ1 = 0, Φ1 = 0D , ν1 < − D−1
+2 ,
+and fixing Σ to a constant positive definite matrix.
+This setting is direct if we consider a “non-central”
+version of the MGIG random matrix Σ − Σ0 and make
+Ψ2 , Φ2 → ∞; then Σ → Σ0 . We do not involve such
+design which may complicate the model; further we
+set V0 and Z0 to a null matrix for simplicity. From the
+GMGIG model, we derive the marginal distribution
+p(W |V, Σ, Ψ1 , Φ1 , ν1 ) as
+Z
+N (W |V Z, Σ ⊗ Ω)N (Z|0, κ2 IK ⊗ Ω)p(Ω)dZdΩ
+Z
+= N (W |0, Σ̃ ⊗ Ω)MGIG(Ω|Ψ1 , Φ1 , ν1 )dΩ
+=
+
+|Σ̃|−D/2 |Ψ1 |−d/2
+T −1
+· |ID + Ψ−1
+W |ν1 −d/2
+1 W Σ̃
+π Dd/2 Bν1 ( Φ21 Ψ21 )
+!
+Φ1 Ψ1 + W T Σ̃−1 W
+· Bν1 −d/2
+(3)
+2
+2
+
+where Σ̃ , κ2 V V T + Σ. The marginal distribution
+of W is the Matrix variate Generalized Hyperbolic
+(MGH) distribution (Butler, 1998). This distribution
+is mixed by matrix Gaussian distribution and MGIG
+distribution. It is noted that Σ̃ is decomposed as the
+sum of the original row covariance matrix Σ and a
+low-rank matrix product V V T ; hence, Σ̃ actually correlates the tasks in the weight matrix W and its lowrank approximation helps identify the high relevance
+directions for a large number of tasks and further helps
+reduce the computational complexity in the inference.
+
+1. Let −ν1 >
+
+D−1
+2
+
+and Φ1 = 0, then
+
+W |V, Σ, Ψ1 , ν1 ∼ Td,D (−2ν1 − D + 1, 0, Σ̃, Ψ1 )
+is matrix variate T distribution according to Section 4.2 of (Gupta & Nagar, 2000).
+2. Let ν1 >
+
+D−1
+2
+
+and Ψ1 = 0, then
+
+W |V, Σ, Φ1 , ν1 ∼ MBS d,D (ν1 , Σ̃, Φ1 )
+is Matrix variate Bessel (MBS) distribution
+or matrix variate Variance-Gamma distribution.
+When D = 1, the MBS distribution degenerates
+to multivariate Bessel distribution as in (Kotz
+et al., 2001). For MBS, if ν1 − d2 = D
+2 then
+W |V, Σ, Φ1 , ν1 is matrix variate Laplacian distribution similar to the degeneration in the multivariate case.
+Moreover, we would like to point out that in (Archambeau et al., 2011), the definition of the MGH distribution is derived from the GIW framework and is different from the definition in (3). Archambeau et al. pro√
+pose the Gaussian scale mixture model: W = γX,
+where scale factor γ > 0 follows GIG distribution and
+X ∼ N (0, Σ ⊗ Ω). The MGH conditional distribution for
+pW derived therein is a Matérn class function
+w.r.t. φ + Tr Ω−1 W T Σ−1 W and the covariance matrices Ω and Σ are considered as constant matrices or
+hyper-parameters; however, in the GIW framework Ω
+is inverse Wishart distributed. Hence, the marginal
+distribution of W is not preserved to be MGH if the
+matrix Ω is further integrated out in their model.
+Though both definitions are able to degenerate to the
+multivariate generalized hyperbolic distribution, our
+definition of MGH is derived from the mixture of
+MGIG prior, which is a formal matrix prior with a
+closed form marginal distribution for W . We compare
+our model with theirs in Section 5 and show that our
+model is better in performance.
+
+3. Inference of the GMGIG Regression
+Model
+In this section, we propose a Bayesian model for multitask learning by which we leverage the residual error
+
+Multi-Task Learning with the GMGIG Model
+
+structure based on the GMGIG model. Herein, we
+make the residual error structure assumption in (1) for
+:  ∼ Nd,N (0, Σ⊗σ 2 IN ); then we obtain the following
+statistical dependence on Y :
+Y ∼ Nd,N (W X + µ1TN , Σ ⊗ σ 2 IN )
+
+(Bishop, 2006):
+Ql (θl ) = R
+
+exphlog p(∆, θ)il0 6=l
+exphlog p(∆, θ)il0 6=l dθl
+
+(4)
+
+Herein, h·il0 6=l indicates the expectation of parameter
+θl under the joint auxiliary density without θl .
+
+Notice that we denote Σ as the task covariance matrix
+for , which is the same as the task covariance matrix
+for the weight matrix W in the GMGIG model, since
+we intend to combine the residual error structure with
+the GMGIG model to arrive at a more stable relationship among the tasks and to make the inference more
+accurate than the existing literature (Rothman et al.,
+2010). We define the GMGIG regression model as the
+graphical model in Figure 1.
+
+In the E phase, we have the parameter estimation as :
+
+Ψ2 , Φ2 , ν2
+
+Ω ∼MGIG D (Ψ̂1 , Φ1 , ν̂1 )
+
+W =(hV ihZihΩ−1 i + σ −2 (Y − µ1TN )X T )ΩW
+−1 T −1
+V =hW ihΩ−1 ihZiT (κ−1
+Z i)
+1 IK + hZΩ
+T −1
+Z =(κ−1
+V i)−1 hV iT hΣ−1 ihW i
+2 IK + hV Σ
+
+where ΩW = (hΩ−1 i+σ −2 XX T )−1 . For parameters Ω
+and Σ, since there is no closed form for the expectation
+of MGIG distribution, we only obtain their posterior
+distributions, which are also MGIG distributions, as :
+
+Σ ∼MGIG d (Ψ̂2 , Φ2 , ν̂2 )
+V
+
+Σ
+
+σ2
+
+W
+
+Y
+
+In the M phase, the hyperparameters are updated as :
+T
+T
+Ψ̂1 =Ψ1 + κ−1
+2 hZ Zi + h(W − V Z) (W − V Z)i
+T
+−1
+Ψ̂2 =Ψ2 + κ−1
+(W − V Z)T i
+1 hV V i + h(W − V Z)Ω
+
+Z
+
+Ω
+
+X
+
++ σ −2 h(Y − W X − µ1TN )(Y − W X − µ1TN )T i
+ν̂1 =ν1 − (d + K)/2
+
+Ψ1 , Φ1 , ν1
+
+Figure 1. Graphical Model of the GMGIG regression
+Model.
+
+In order to maximize the likelihood of the training
+data for a precise prediction, we adopt the Expectation
+Maximization (EM) algorithm under the variational
+framework to learn the parameters of the GMGIG
+regression model. Herein, we denote the observed
+data set as ∆ = {X, Y } and the parameter set as θ.
+Through the variational method, we approximate the
+marginal likelihood p(∆) by
+Z
+log p(∆) ≥
+
+Q(θ) log
+
+p(∆, θ)
+dθ + KL(Q(θ)||p(θ|∆))
+Q(θ)
+
+where Q(θ) is the auxiliary density of the parameters
+and the inequality is due to the Jensen’s inequality and
+KL(·||·) is the Kullback-Leibler divergence between
+two distributions,R which is nonnegative. Hence, we
+have log p(∆) ≥ Q(θ) log p(∆,θ)
+Q(θ) dθ , L(Q). Herein,
+we tend to select an auxiliary distribution Q(θ) of the
+parameters θ to minimize KL(Q(θ)||p(θ|∆)) in order to
+approximate log p(∆) by its lower bound L(Q). The
+optimal distribution to minimize the KL divergence is
+
+ν̂2 =ν2 − (d + N + D + K)/2
+
+4. Numerical estimation on the
+statistics of MGIG distribution
+In the previous section, the estimation of the parameters Σ and Ω is obtained in the EM framework. Since
+there is no closed form for the parameter estimation
+as far as we know, we intend to offer a numerical estimation. In this section, we first introduce two fundamental propositions; then we present two sampling
+methods for computing the matrix Bessel function and
+the corresponding sampling methods for estimating
+the mean and the reciprocal mean of MGIG distribution. Matrix Bessel function Bδ (W Z) is defined as
+an integral over Sp+ :
+Z
+p+1
+(5)
+|W |−δ
+|S|−δ− 2 etr(−SW − S −1 Z)dS
+Sp
++
+
+where W, Z ∈ Sp+ and δ ∈ R.3
+Proposition 1. Assume that Bδ (W Z) is defined as
+above. We have
+Bδ (W Z) = |W Z|−δ B−δ (ZW ).
+3
+W , Z can be positive semidefinite according to the
+value of δ (Butler, 1998).
+
+Multi-Task Learning with the GMGIG Model
+
+If −δ >
+
+p−1
+2 ,
+
+Z
+
+we further have
+
+|S|−δ etr(−S − W T /2 ZW 1/2 S −1 )
+
+=
+Sp
++
+
+Bδ (0) = Γp (−δ).
+
+Z
+
+where Γp (·) is the multivariate gamma function (Gupta
+& Nagar, 2000).
+
+dS
+|S|(p+1)/2
+
+|S|(1+α)t−2δ
+
+=
+Sp
++
+
+· |S|−δ+2δ−(1+α)t etr(−S − W T /2 ZW 1/2 S −1 )
+Proof. The first equation is from the transformation
+S → S −1 in the integral (5). The second equation is
+obtained by setting Z to a null matrix in (5) and using
+the definition of the multivariate gamma function.
+Proposition 2. If matrix G ∼ MGIG p (Ψ, Φ, ν), then
+G−1 ∼ MGIG p (Φ, Ψ, −ν).
+Proof. The proof is straightforward by the transformation G → G−1 in (2) and using Proposition 1.
+Computing the matrix Bessel function is an open problem in multivariate statistics; the existing method is
+the Laplace approximation (Butler & Wood, 2003).
+Since the approximation is not accurate, we intend to
+apply the Monte Carlo method to sample the integral.
+Ideally, we would consider MGIG distribution as the
+product of Wishart distribution and inverse Wishart
+distribution. We generate sufficient samples through
+either distribution and average the evaluations of the
+samples to estimate the integral. This estimation is
+p−1
+valid only if |δ| > p−1
+2 . For |δ| ≤ 2 , the generation
+method of the random samples needs to be modified
+since δ in this region is not qualified to be the degree
+of freedom of Wishart distribution or inverse Wishart
+distribution. We propose two importance sampling
+methods (Mackay, 2003) in the following.
+4.1. Estimating the matrix Bessel function
+p−1
+For the case of |δ| ≤ p−1
+2 , we first define t , δ − 2 ;
+then we make the importance sampling in “pull” mode
+or in “push” mode:
+
+• Pull the “degree of freedom”4 δ more than p−1
+2 ,
+generate the Wishart random matrices, and average the evaluations of the samples.
+• Push the “degree of freedom” δ less than − p−1
+2 ,
+generate the inverse Wishart random matrices,
+and average the evaluations of the samples.
+For the “pull” mode, we have
+Z
+Bδ (W Z) =|W |−δ
+|S|−δ etr(−SW − S −1 Z)
+Sp
++
+
+4
+
+dS
+|S|(p+1)/2
+
+Though δ is not explicitly defined as the degree of freedom for the MGIG distribution, we herein borrow the concept from Wishart distribution.
+
+dS
+|S|(p+1)/2
+
+=h|S|(1+α)t−2δ etr(−W T /2 ZW 1/2 S −1 )i · Γp (δ − (1 + α)t)
+where W = W 1/2 W T /2 ; α > 0 is a coefficient controlling the surplus of the degree of freedom beyond p−1
+2
+and the samples
+S ∼W ishart(2Ip , 2(δ − (1 + α)t)).
+
+(6)
+
+For the “push” mode, we have
+Bδ (W Z)
+Z
+−δ
+=|W |
+|S|−δ etr(−SW − S −1 Z)
+Sp
++
+
+Z
+=
+Sp
++
+
+Z
+=
+
+dS
+|S|(p+1)/2
+
+dS
+1
+etr(−S − W T /2 ZW 1/2 S −1 ) (p+1)/2
+|S|δ
+|S|
+|S|−(1+β)t
+
+Sp
++
+
+1
+dS
+etr(−S − W T /2 ZW 1/2 S −1 ) (p+1)/2
+|S|δ−(1+β)t
+|S|
+Γp (δ − (1 + β)t)
+=h|S|−(1+β)t etr(−S)i ·
+|ZW |δ−(1+β)t
+·
+
+where β > 0 is a coefficient controlling the surplus of
+the degree of freedom beyond p−1
+2 and the samples
+S ∼IW ishart(2W T /2 ZW 1/2 , 2(δ − (1 + β)t)).
+
+(7)
+
+The “push-pull” sampling methods are also feasible
+p−1
+when |δ| > p−1
+2 . For δ >
+2 , we set β = −1 and
+take the sampling through (7); for δ < − p−1
+2 we use
+Proposition 1 and the sampling is taken similarly.
+4.2. Sampling the mean of MGIG
+Using the “push-pull” sampling methods above, we
+have two methods for sampling the mean of the distribution MGIG p (Ψ, Φ, ν). We first define t , ν − p−1
+2
+and for the “pull” mode sampling, we have
+hGiM GIG
+Z
+|G|ν−(1+α)t
+=
+G|G|(1+α)t Ψ ν
+| 2 | Bν ( Φ2 Ψ
+Sp
+2)
++
+
+
+1
+1
+dG
+· etr − G−1 Ψ − GΦ
+2
+2
+|G|(p+1)/2
+Γp (ν − (1 + α)t)
+=hG|G|(1+α)t etr(−G−1 Ψ/2)i Φ ν−(1+α)t Ψ ν
+|2|
+| 2 | Bν ( Φ2 Ψ
+2)
+
+Multi-Task Learning with the GMGIG Model
+
+where α > 0 is a coefficient controlling the surplus of
+the degree of freedom beyond p−1
+2 and the samples
+G ∼ W ishart(Φ−1 , 2(ν − (1 + α)t))
+
+(8)
+
+For the “push” mode, we have
+hGiM GIG
+Z
+=
+G|G|2ν−(1+β)t
+
+1
+ΦΨ
+ν
+|G|ν−(1+β)t | Ψ
+2 | Bν ( 2 2 )
+
+
+1
+1
+dG
+·etr − G−1 Ψ − GΦ
+(p+1)/2
+2
+2
+|G|
+Γp (ν − (1 + β)t)
+=hG|G|2ν−(1+β)t etr(−GΦ/2)i Ψ 2ν−(1+β)t
+|2|
+Bν ( Φ2 Ψ
+2)
+Sp
++
+
+where β > 0 is a coefficient controlling the surplus of
+the degree of freedom beyond p−1
+2 and the samples
+G ∼ IW ishart(Ψ, 2(ν − (1 + β)t)).
+
+(9)
+
+The “push-pull” sampling methods are also feasible
+p−1
+when |ν| > p−1
+2 . For ν > 2 , we simply set α = −1
+and take the sampling through (8); for ν < − p−1
+2 , we
+set β = 2ν/t − 1 and take the sampling through (9).
+4.3. Sampling the reciprocal mean of MGIG
+Similarly, we can sample the reciprocal mean of
+MGIG p (Ψ, Φ, ν) by using Proposition 2
+hG−1 iM GIG
+
+
+Z
+|G|−ν−(p+1)/2
+1
+1 −1
+=
+G Φ −ν
+etr − G Φ − GΨ dG
+Φ
+2
+2
+| 2 | B−ν ( Ψ
+Sp
+2 2)
++
+Hence, we first define t , −ν − p−1
+2 and for the “pull”
+mode, hG−1 iM GIG is estimated as
+hG|G|(1+α)t etr(−G−1 Φ/2)i
+
+Γp (−ν − (1 + α)t)
+−(1+α)t B ( Φ Ψ )
+|Ψ
+ν 2 2
+2|
+
+where α > 0 is a coefficient controlling the surplus of
+the degree of freedom beyond p−1
+2 and the samples
+G ∼ W ishart(Ψ−1 , 2(−ν − (1 + α)t))
+
+(10)
+
+For the “push” model, hG−1 iM GIG is estimated as
+hG|G|−2ν−(1+β)t etr(−GΨ/2)i
+
+Γp (−ν − (1 + β)t)
+Φ −2ν−(1+β)t
+Φ
+|2|
+B−ν ( Ψ
+2 2)
+
+where β > 0 is a coefficient controlling the surplus of
+the degree of freedom beyond p−1
+2 and the samples
+G ∼ IW ishart(Φ, 2(−ν − (1 + β)t))
+
+(11)
+
+The “push-pull” sampling methods are also feasible
+p−1
+when |ν| > p−1
+2 . For ν < − 2 , we set α = −1 and
+take the sampling through (10); for ν > p−1
+2 , we set
+β = −2ν/t − 1 and take the sampling through (11).
+
+5. Experiments
+In this section, we report the experimental evaluations on multi-task learning on two datasets: a toy
+dataset and a real dataset (landmine dataset). In
+the real data experiment, we compare the GMGIG regression model for multi-task learning (MTL-GMGIG)
+with the single task learning method, the ridge logistic
+regression (STL), and the other state-of-the-art multitask learning methods with least square loss including
+clustered multi-task learning (MTL-C) (Jacob et al.,
+2008), multi-task feature learning (MTL-F) (Argyriou
+et al., 2006; Zhou et al., 2011), multi-task learning with
+sparse matrix norm (MTL(Ω&Σ)) (Zhang & Schneider, 2010), multi-task relationship learning (MTRL)
+(Zhang & Yeung, 2010), multiple regression with covariance estimation (MRCE) (Rothman et al., 2010),
+sparse Bayesian multi-task learning (SBMTL) (Archambeau et al., 2011), and multi-task learning with
+GIW model (MTL-GIW).
+For the hyperparameter configuration in MTLGMGIG, we set Ψ1 and Φ1 to infinite matrices and
+make Ω approximate to identity matrix ID , Ψ2 and
+Φ2 are initiated to Id and 5Id respectively, ν2 is initiated to d + 1, σ is set to 10. The hyperparameter configuration for MTL-GIW is the same as that of
+MTL-GMGIG except that Φ2 is set to null matrix.
+5.1. Toy Dataset
+Before we apply MTL-GMGIG on the real dataset,
+we first conduct a proof of concept experiment on
+a toy dataset. We generate the toy data as follows. We establish three regression tasks according
+to three regression functions: Z1 = 2X1 + 3Y1 + 1,
+Z2 = −2X2 − 3Y2 + 2, and Z3 = 1. For each task,
+we randomly sample 1000 pairs of points uniformly in
+the xOy plane [−5, 5] × [−5, 5]. Each function is corrupted by a Gaussian noise process with zero mean and
+variance equal to 0.1. The data points are plotted in
+Figure 5.1, with each color (and legend) corresponding to one task. From the coefficients of the regression functions, we expect the correlations Corr(Z1 , Z2 )
+to approach to −1, Corr(Z1 , Z3 ) and Corr(Z2 , Z3 )
+both to approach to 0. After we apply MTL-GMGIG,
+we obtain the estimated regression functions: Z1 =
+2.003X1 +3.033Y1 +1.082, Z2 = −1.964X2 −3.007Y2 +
+2.004, and Z3 = −0.0001X3 − 0.0019Y3 + 0.9914. We
+also obtain the correlation matrix for the three tasks in
+the left below and for comparison we list the correlation matrix obtained from SBMTL in the right below.
+Clearly, the task correlations learned herein confirm
+the expectation that MTL-GMGIG is able to discover
+the relationships among the tasks for this toy problem
+
+Multi-Task Learning with the GMGIG Model
+0.86
+
+20
+AUC scores
+
+0.84
+
+0
+−20
+
+0.82
+0.8
+
+−5
+0
+X
+
+5 −5
+
+0
+
+5
+
+Y
+ : Z1 = −2X1 − 3Y1 + 1
+: Z2 = 2X1 + 3Y1 + 2
+4 : Z3 = 1
+Figure 2. Toy dataset
+
+with a much better performance than that of SBMTL.
+#
+#"
+1
+-0.636 0.103
+1
+-0.875 -0.017
+-0.636
+1
+0.203
+-0.875
+1
+0.048
+0.103
+0.203
+1
+-0.017 0.048
+1
+SBMTL
+MTL-GMGIG
+
+"
+
+5.2. Landmine Detection Dataset
+The landmine detection dataset5 consists of 14280 examples of 29 tasks collected from various landmine
+fields. Each example in the dataset is detected by a
+radar and represented by a 9-dimensional vector describing various features concerned. The landmine detection problem is cast as a binary classification problem to predict landmines (positive class) or clutter
+(negative class) and we learn the GMGIG regression
+model for prediction. For a fair comparison with (Xue
+et al., 2007; Zhang & Schneider, 2010), we also jointly
+learn the same 19 tasks from landmine fields 1 − 10
+and 16 − 24 in the dataset. As a result, the weight matrix W is 19 × 10 matrix corresponding to the 19 tasks
+and the 10 coefficients (9 features and the intercept)
+for each task.
+We elect to use the average AUC (Area Under the
+ROC Curve) as the performance measure for the comparison and vary the size of the training set for each
+task as 30, 40, and 80, respectively. The size of the
+training set is kept in a small scale since the advantage of multi-task learning would begin to vanish as
+the training size increases. For each task, the remaining examples are treated as the testing sets. The AUC
+scores are task-averaged for each run. We report the
+5
+
+http://www.ee.duke.edu/˜lcarin/LandmineData.zip
+
+SBMTL
+MTL-GMGIG
+
+0.78
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9
+
+K
+
+Figure 3. The AUC scores under different K values for
+SBMTL and MTL-GMGIG, respectively. The training size
+is 30.
+
+average AUC scores and their standard errors for 30
+runs in Table 1. It is noted that MTL-GMGIG outperforms the other models due to the low-rank approximation to the task covariance matrix and the residual
+error structure introduced in the model to discover
+the relationship among the tasks. Consistent with
+the intuition, like the other methods, the performance
+of MTL-GMGIG increases when the training size increases. On the other hand, the gain of MTL-GMGIG
+over all the other methods is more significant when the
+training size is small where multi-task learning is more
+appropriate, which indicates that MTL-GMGIG is the
+best for multi-task learning.
+For the dimensionality analysis of the latent relevance
+K in MTL-GMGIG, we study how the performance
+varies with different K values. Figure 3 shows that the
+average performance of MTL-GMGIG on the Landmine detection dataset varies with K. For a comparison, we also show the performance variation for
+SBMTL with different K values. It is noted that both
+the AUC scores increase, though not monotonically,
+with the increase of K and the performance of MTLGMGIG is superior to that of SBMTL.
+
+6. Conclusion
+In this paper, we study the multi-task learning problem with a new perspective of considering the structure of the residue error matrix and the low-rank approximation to the task covariance matrix simultaneously. For this purpose, we first introduce the MGIG
+prior and propose the GMGIG model. Combining this
+model with the residual error structure assumption, we
+have developed the GMGIG regression model with the
+variational inference and sampling simultaneously to
+
+Multi-Task Learning with the GMGIG Model
+Table 1. The average AUC scores in percentage on the landmine detection dataset for K = 7 in the form of the mean
+(standard error).
+
+STL
+MTL-C
+MTL-F
+MTL(Ω&Σ)
+MTRL
+MRCE
+SBMTL
+MTL-GIW
+MTL-GMGIG
+
+Training Size(average % of the whole size)
+30(6.0%)
+40(8.0%)
+80(16.1%)
+63.71(0.91)
+66.72(0.60)
+70.67(0.45)
+64.23(1.10)
+69.39(0.87)
+79.75(0.95)
+62.77(0.94)
+66.94(1.11)
+70.09(1.26)
+65.46(1.91)
+73.66(1.63)
+83.01(0.61)
+78.31(0.62)
+80.64(0.65)
+87.02(1.00)
+75.53(0.53)
+76.86(0.54)
+77.12(0.83)
+80.28(0.62)
+82.39(0.61)
+85.84(0.88)
+82.36(0.65)
+83.63(0.64)
+85.60(0.37)
+84.90(0.44)
+86.94(0.34)
+89.00(0.45)
+
+make the computation tractable. We have developed
+two sampling strategies to compute the statistics of
+the MGIG distribution. Experiments show that this
+model is superior to the peer methods in regression
+and prediction. For our future research on multi-task
+learning problem, we intend to extend the prior of the
+task covariance martix by introducing the scale mixture model.
+
+Acknowledgments
+We thank Professor Ronald W. Butler for his valuable
+suggestions. We also thank the area chair and reviewers for their constructive comments. This work is supported in part by the National Basic Research Program of China (2012CB316400), Zhejiang University
+— Alibaba Financial Joint lab, and Zhejiang Provincial Engineering Center on Media Data Cloud Processing and Analysis. ZZ is also supported in part by US
+NSF (IIS-0812114, CCF-1017828).
+
+References
+
+Agarwal, Arvind, Daumé III, Hal, and Gerber,
+Samuel. Learning multiple tasks using manifold regularization. In NIPS, pp. 46–54, 2010.
+Ando, Rie Kubota and Zhang, Tong. A framework
+for learning predictive structures from multiple tasks
+and unlabeled data. Journal of Machine Learning
+Research, 6:1817–1853, 2005.
+Archambeau, Cédric, Guo, Shengbo, and Zoeter,
+Onno. Sparse bayesian multi-task learning. In NIPS,
+pp. 1755–1763, 2011.
+Argyriou, Andreas, Evgeniou, Theodoros, and Pontil,
+
+Massimiliano. Multi-task feature learning. In NIPS,
+pp. 41–48. MIT Press, 2006.
+Argyriou, Andreas, Micchelli, Charles A., Pontil, Massimiliano, and Ying, Yiming. A spectral regularization framework for multi-task structure learning. In
+NIPS, 2007.
+Barndorff-Nielsen, O., Blæsild, P., and Jensen,
+J. Ledet. Exponential transformation models. Proceeding of The Royal Society Lond A, 379(1776):41–
+65, 1982.
+Baxter, Jonathan. A model of inductive bias learning.
+Journal of Artificial Intelligence Research, 12:149–
+198, 2000.
+Bishop, Christopher M. Pattern Recognition and Machine Learning. Springer, first edition, 2006.
+Bonilla, Edwin V., Chai, Kian Ming Adam, and
+Williams, Christopher K. I. Multi-task gaussian process prediction. In NIPS, 2007.
+Breiman, Leo and Friedman, Jerome H. Predicting
+multivariate responses in multiple linear regression.
+Journal of the Royal Statistical Society: Series B
+(Statistical Methodology), 59(1):3–54, 1997.
+Butler, Ronald W. Generalized inverse gaussian distributions and their wishart connections. Scandinavian
+Journal of Statistics, 25(1):69–75, 1998.
+Butler, Ronald W. and Wood, Andrew T. A. Laplace
+approximation for bessel functions of matrix argument. Journal of Computational and Applied Mathematics, 155:359–382, 2003.
+Caruana, Rich. Multitask learning. In Machine Learning, pp. 41–75, 1997.
+
+Multi-Task Learning with the GMGIG Model
+
+Chen, Jianhui, Tang, Lei, Liu, Jun, and Ye, Jieping.
+A convex formulation for learning shared structures
+from multiple tasks. In ICML, pp. 18, 2009.
+Chen, Jianhui, Zhou, Jiayu, and Ye, Jieping. Integrating low-rank and group-sparse structures for robust
+multi-task learning. In KDD, pp. 42–50, 2011.
+Evgeniou, Theodoros and Pontil, Massimiliano. Regularized multi-task learning. In KDD, pp. 109–117,
+2004.
+Gupta, A. K. and Nagar, D. K. (eds.). Matrix Variate
+Distribution. Chapman & Hall, 2000.
+Herz, Carl S. Bessel functions of matrix argument.
+Annals of Mathematics, 61(3):474–523, 1955.
+Jacob, Laurent, Bach, Francis, and Vert, JeanPhilippe. Clustered multi-task learning: A convex
+formulation. In NIPS, pp. 745–752, 2008.
+Jenatton, Rodolphe, Audibert, Jean-Yves, and Bach,
+Francis. Structured variable selection with sparsityinducing norms. Journal of Machine Learning Research, 12:2777–2824, 2011.
+Kim, Seyoung and Xing, Eric P. Tree-guided group
+lasso for multi-task regression with structured sparsity. In ICML, pp. 543–550, 2010.
+Kotz, Samuel, Kozubowski, Tomasz J., and Podgórski,
+Krzysztof. The Laplace distribution and generalizations: a revisit with applications to communications,
+economics, engineering, and finance. Birkhäuser,
+Boston, 2001.
+Le, Nhu D. and Zidek, James V. Statistical Analysis
+of Environmental Space-Time Processes. Springer,
+2006.
+
+Rothman, A. J., Levina, E., and Zhu, J. Sparse multivariate regression with covariance estimation. Journal of Computational and Graphical Statistics, pp.
+947–962, 2010.
+Sohn, Kyung-Ah and Kim, Seyoung. Joint estimation of structured sparsity and output structure
+in multiple-output regression via inverse-covariance
+regularization. Journal of Machine Learning Research - Proceedings Track, 22:1081–1089, 2012.
+Stein, Michael L. Interpolation of Spatial Data: Some
+Theory for Kriging. Springer, 1999.
+Thrun, Sebastian. Is learning the n-th thing any easier
+than learning the first? In NIPS, pp. 640–646. The
+MIT Press, 1996.
+Xue, Ya, Liao, Xuejun, Carin, Lawrence, and Krishnapuram, Balaji. Multi-task learning for classification
+with dirichlet process priors. Journal of Machine
+Learning Research, 8, 2007.
+Yu, Shipeng, Tresp, Volker, and Yu, Kai. Robust
+multi-task learning with t-processes. In ICML, pp.
+1103–1110, 2007.
+Zhang, Jian, Ghahramani, Zoubin, and Yang, Yiming. Learning multiple related tasks using latent independent component analysis. In NIPS, pp. 1585–
+1592, 2005.
+Zhang, Yi and Schneider, Jeff G. Learning multiple
+tasks with a sparse matrix-normal penalty. In NIPS,
+pp. 2550–2558. Curran Associates, Inc., 2010.
+Zhang, Yu and Yeung, Dit-Yan. A convex formulation
+for learning task relationships in multi-task learning.
+In UAI, pp. 733–742. AUAI Press, 2010.
+
+Mackay, David J. C. Information Theory, Inference
+and Learning Algorithms. Cambridge University
+Press, 2003.
+
+Zhang, Zhihua, Wang, Shusen, Liu, Dehua, and
+I.Jordan, Michael. EP-GIG Priors and Applications
+in Bayesian Sparse Learning. Journal of Machine
+Learning Research, 13:2031–2061, 2012.
+
+Obozinski, Guillaume, Taskar, Ben, and Jordan,
+Michael I. Joint covariate selection and joint subspace selection for multiple classification problems.
+Statistics and Computing, 20(2):231–252, 2009.
+
+Zhou, J., Chen, J., and Ye, J. MALSAR: Multi-tAsk
+Learning via StructurAl Regularization. Arizona
+State University, 2011. URL http://www.public.
+asu.edu/~jye02/Software/MALSAR.
+
+Rai, Piyush and Daumé III, Hal. Infinite predictor
+subspace models for multitask learning. Journal of
+Machine Learning Research - Proceedings Track, 9:
+613–620, 2010.
+Rasmussen, Carl Edward and Williams, Christopher
+K. I. Gaussian Processes for Machine Learning.
+MIT Press, 2006.
+
+

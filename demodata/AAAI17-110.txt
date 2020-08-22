@@ -1,0 +1,1266 @@
+Proceedings of the Thirty-First AAAI Conference on Artificial Intelligence (AAAI-17)
+
+Parallel Asynchronous Stochastic
+Variance Reduction for Nonconvex Optimization
+Cong Fang, Zhouchen Lin∗
+Key Laboratory of Machine Perception (MOE), School of EECS, Peking University, P. R. China
+Cooperative Medianet Innovation Center, Shanghai Jiao Tong University, P. R. China
+fangcong@pku.edu.cn, zlin@pku.edu.cn
+
+where fi (i ∈ {1, 2, · · · , n}) have L-Lipschitz continuous
+gradient (L > 0) but can be nonconvex and n is the number
+of functions. A large number of models can be formulated as
+Eq. (1), such as neural networks, dictionary learning, and inference in graphical models (Allen-Zhu and Hazan 2016). In
+this paper, we focus on algorithms that can efﬁciently reach
+a stationary point satisfying ∇f (x)2 ≤  , which is a common benchmark for nonconvex algorithms.
+The standard method to solve Eq. (1) is through Gradient
+Descent (GD) and Stochastic Gradient Descent (SGD). In
+large-scale problems, SGD is faster in practice, since it randomly chooses only one sample to estimate the gradient during each update. However, its provable convergence rate is
+slower than GD. The Incremental First-order Oracles (IFOs)
+complexity for GD and SGD to reach a stationary point are
+O( n ) and O( σ2 ), respectively, where σ is the variance of
+stochastic gradient (Ghadimi and Lan 2013).
+Variance Reduction (VR) methods are one of the great
+varieties of SGD methods which ensure the descent direction to have a bounded variance and so can achieve a much
+faster convergence rate compared with SGD. (Johnson and
+Zhang 2013) ﬁrst propose the Stochastic Variance Reduced
+Gradient (SVRG) algorithm and prove that the algorithm
+has a linear convergence rate instead of a sublinear rate for
+SGD, for strongly convex problems. They have also done a
+compelling experiment on neural networks to demonstrate
+the advantage on nonconvex problems. Recently, there are
+much research (Reddi et al. 2016), (Allen-Zhu and Hazan
+2016) that carefully analyse SVRG on nonconvex optimization problems. They both prove that SVRG convergences in
+
+Abstract
+Nowadays, asynchronous parallel algorithms have received
+much attention in the optimization ﬁeld due to the crucial demands for modern large-scale optimization problems. However, most asynchronous algorithms focus on convex problems. Analysis on nonconvex problems is lacking. For the Asynchronous Stochastic Descent (ASGD) algorithm, the best result from (Lian et al. 2015) can only
+achieve an asymptotic O( 12 ) rate (convergence to the stationary points, namely, ∇f (x)2 ≤ ) on nonconvex
+problems. In this paper, we study Stochastic Variance Reduced Gradient (SVRG) in the asynchronous setting. We propose the Asynchronous Stochastic Variance Reduced Gradient (ASVRG) algorithm for nonconvex ﬁnite-sum problems. We develop two schemes for ASVRG, depending on
+whether the parameters are updated as an atom or not. We
+prove that both of the two schemes can achieve linear speed
+2
+
+up1 (a non-asymptotic O( n3 ) rate to the stationary points)
+1
+for nonconvex problems when the delay parameter τ ≤ n 3 ,
+where n is the number of training samples. We also estab2
+
+1
+
+lish a non-asymptotic O( n 3τ 3 ) rate (convergence to the stationary points) for our algorithm without assumptions on τ .
+This further demonstrates that even with asynchronous updating, SVRG has less number of Incremental First-order Oracles (IFOs) compared with Stochastic Gradient Descent and
+Gradient Descent. We also conduct experiments on a shared
+memory multi-core system to demonstrate the efﬁciency of
+our algorithm.
+
+Introduction
+
+2
+
+We study nonconvex ﬁnite-sum problems of the form:
+1
+fi (x),
+n i=1
+n
+
+min f (x) =
+
+x∈Rd
+
+1
+
+O( n3 ) for nonconvex problems, which is at least O(n 3 )
+faster than GD.
+On the other hand, to meet the requirement for modern
+large-scale problems, asynchronous parallel algorithms have
+received much attention, e.g., Asynchronous Stochastic Gradient Descent (ASGD) (Niu et al. 2011),(Agarwal and Duchi
+2011), (Lian et al. 2015), Asynchronous Coordinate Descent (Liu et al. 2015), Asynchronous Dual Coordinate Descent (Hsieh, Yu, and Dhillon 2015), and Asynchronous Alternating Direction Method of Multipliers (Zhang and Kwok
+2014). Most existing asynchronous methods focus on convex optimization. So the analysis on large-scale nonconvex
+problems, such as neural networks, is lacking. On nonconvex problems, the ASGD algorithm (Lian et al. 2015) can
+
+(1)
+
+∗
+
+Corresponding author.
+c 2017, Association for the Advancement of Artiﬁcial
+Copyright 
+Intelligence (www.aaai.org). All rights reserved.
+1
+The linear speed up means that if we use τ cores to solve a
+problem, it will be at least ατ times faster than using only one core
+to solve this problem (α > 0). It indicates that the asynchronous
+algorithm can still maintain the same convergence rate with the
+serial algorithm when we ignore the constant in the convergence
+rate.
+
+794
+
+only achieve an asymptotic O( 12 ) rate. The convergence
+rates for different algorithms are shown in Table 1.
+In this paper, we study the asynchronous variant of SVRG
+for nonconvex optimization problems. We choose SVRG
+rather than other VR methods since it has a low storage requirement, which is more suitable for optimization with a
+large number of variables, such as neural networks. We develop two schemes for Asynchronous Stochastic Variance
+Reduced Gradient (ASVRG) depending on whether the parameters are updated as an atom. Distinguished from the
+proof of ASGD (Lian et al. 2015), we propose a uniﬁed
+proof for the two schemes. We show that both schemes
+
+Algorithm 1 Serial SVRG
+Input x00 , epoch length m, step size γ, and S = K/m.
+1 for s = 0 to
+nS − 1 do
+2 gs = n1 i=1 ∇fi (xs0 ),
+3 for k = 0 to m − 1 do
+4
+Randomly sample ik from 1, 2, · · · , n,
+5
+vks = ∇fik (xsk ) − ∇fik (xs0 ) + gs ,
+6
+xsk+1 = xsk − γvks ,
+7
+end for k.
+= xsm ,
+8 xs+1
+0
+9 end for s.
+
+2
+
+can achieve a linear speed up (a non-asymptotic O( n3 )
+rate to stationary points) for nonconvex problems when
+1
+the delay parameter τ ≤ n 3 . We also establish a non2
+
+smooth problems and prove that the convergence rate is
+O(1/2 + τ 2 /). (Liu et al. 2015) propose an asynchronous
+stochastic coordinate descent algorithm and prove that the
+near-linear speed up is achievable if τ ≤ O(n1/2 ) for
+smooth convex functions under certain conditions. Another
+two works we should mention are (Reddi et al. 2015) and
+(Lian et al. 2015). In the ﬁrst work, (Reddi et al. 2015) study
+asynchronous SVRG on strongly convex functions. They
+achieve a linear convergence rate under certain conditions.
+For nonconvex problem, (Lian et al. 2015) analyse ASGD
+and show that ASGD can achieve an asymptotic O(1/2 )
+convergence rate.
+
+1
+
+asymptotic O( n 3τ 3 ) rate (convergence to the stationary
+point) without any assumption on τ . This demonstrates that
+with asynchronous updating, SVRG still has a less number
+of IFOs compared with SGD and GD. We then experiment
+on a shared memory system to validate the speedup properties and demonstrate the efﬁciency of our algorithm. In
+summary, our work makes the following contributions:
+• We devise the ASVRG algorithm for asynchronous largescale nonconvex optimization or distributed systems.
+• We show that ASVRG can achieve linear speed up when
+2
+
+1
+
+VR Methods
+
+1
+
+τ ≤ n 3 and also prove that it has an ergodic O( n 3τ 3 )
+convergence rate with no assumption on τ .
+
+VR methods have received a broad attention in recent years,
+e.g., SAG (Schmidt, Roux, and Bach 2013), SVRG (Johnson
+and Zhang 2013), and SAGA (Defazio, Bach, and LacosteJulien 2014).
+Since we focus on the asynchronous variant of SVRG, we
+review SVRG in detail. The algorithm has double loops. In
+the outer loop, SVRG deﬁnes a snapshot vector xs0 , and computes the full gradient. At the inner loop, SVRG computes
+the following gradient estimator:
+
+Related Work
+Asynchronous Parallel Algorithms
+Asynchronous algorithms have achieved great success in
+recent years. Up to now, there are lots of practical algorithms. Due to space limit, we only review the algorithms
+that have close relation with ours. The ﬁrst work is from
+(Niu et al. 2011), which proposes a lock free asynchronous
+implementation of SGD on a shared memory system, called
+HOGWILD!. They also provide a proof of non-asymptotic
+O(1/) convergence rate for strongly convex and smooth
+objective functions. (Agarwal and Duchi 2011) propose an
+implementation of SGD on computer clusters for convex
+
+vks = ∇fik (xsk ) − ∇fik (xs0 ) + ∇f (xs0 ).
+
+(2)
+
+The algorithm is shown in Algorithm 1, where γ is step size
+and m is the epoch length. To explain that vks has been reduced variance, one can consider the case when xsk is very
+close to a stationary point x∗ . Then we have
+vks ≈ ∇fik (x∗ ) − ∇fik (x∗ ) + ∇f (x∗ ) = 0,
+
+(3)
+
+∗
+
+while for SGD, the gradient estimator is ∇fit (x ), which
+is not equal to 0. Another observation from Eq. (3) is that
+the step size need not decrease to 0 to ensure the convergence, which is different from SGD. In (Johnson and Zhang
+2013), the authors prove that it can achieve a linear convergence rate for strongly convex problems. Then (Xiao and
+Zhang 2014) study the algorithm in the general convex case.
+Recently, in (Reddi et al. 2016) and (Allen-Zhu and Hazan
+2016), the authors analyse the algorithm in general nonconvex problems. They show that SVRG convergences in
+
+Table 1: Convergence rates of GD based algorithms to stationary points of non-convex problems (“Syn.” indicates the
+algorithm is serial or synchronous in the minibatch mode,
+while “asyn.” indicates that the algorithm is asynchronous.
+Asym. is short for asymptotic. τ is the delay parameter.).
+Syn.
+
+Algorithm
+GD (Nesterov 2013)
+SGD (Ghadimi and Lan 2013)
+
+Convergence Rate
+non-asym. O( n )
+non-asym. O( 12 )
+
+SVRG (Reddi et al. 2016)
+ASGD (Lian et al. 2015)
+
+non-asym. O( n3 )
+asym. O( 12 )
+
+Asyn.
+ASVRG (ours)
+
+2
+
+non-asym. O(
+
+2
+n3
+
+
+
+), τ ≤ n
+2
+
+2
+
+O( n3 ). They bound the variance of gradient through the
+following equation
+
+
+
+
+
+
+E vks 2 ≤ E ∇f (xsk )2 + L2 E xsk − xs0 2 . (4)
+
+1
+3
+
+1
+
+non-asym. O( n 3τ 3 )
+
+795
+
+Our Algorithms
+
+Algorithm 2 ASVRG
+Input x00 , epoch length m, step size γ, and S = K/m.
+1 for s = 0 to
+nS − 1 do
+2 gs = n1 i=1 ∇fi (xs0 ),
+3 for k = 0 to m − 1 do
+4
+Randomly sample ik from 1, 2, · · · , n,
+s
+5
+vj(k)
+= ∇fik (xsj(k) ) − ∇fik (xs0 ) + gs ,
+s
+s
+6
+xk+1 = xsk − γvj(k)
+,
+7
+end for k.
+= xsm ,
+8 xs+1
+0
+9 end for s.
+
+Due to the rapid development of hardware resources, asynchronous parallelisms have recently been very successful on
+many problems, including nonconvex ones, such as neural
+networks (Dean et al. 2012),(Paine et al. 2013) and matrix decomposition (Petroni and Querzoni 2014),(Yun et al.
+2014). The advantage of asynchronous parallelisms is that
+it allows workers to work independently. So it reduces the
+system overhead. Though SVRG has a provably faster convergence rate on non-convex problems using one core, the
+asynchronous variant of SVRG, which meets the crucial demands for large-scale optimization, has not been studied.
+We study two schemes of ASVRG. The ﬁrst scheme ensures
+the parameter to be updated as an atom, which is common
+in star-shaped computer networks, while the other scheme
+has no locks during the updates. This scheme is common in
+shared memory multi-core systems.
+
+The above algorithm is called ASVRG-atom, since the
+value of x is updated as an atom. Whenever x is being updated, it will be locked. So other workers cannot read or
+write it during the update. There are differences between
+ASVRG-atom and the serial SVRG during the “read” step,
+since when a thread has read x and is computing the gradient, other threads might update it during this time. So the
+gradient fik (x) might be computed from some early x instead of the current one during the asynchronous updates.
+We use xsj(k) to denote the early state of x which is used for
+calculating the gradient. Then the algorithm can be written
+as Algorithm 2. The advantage of ASVRG-atom is that the
+algorithm ensures the gradient to be calculated on a real state
+of x. Namely, We have
+
+ASVRG-atom
+We ﬁrst describe ASVRG-atom, which is common in starshaped computer networks. Since SVRG has two loops, we
+implement SVRG in asynchronization in the inner loop. In
+each epoch, we compute ∇f (xs0 ) and update xsk in asynchronization. There will be a synchronization operation after computing the full gradient and after each epoch, respectively. Since both m and n are always large, the synchronization operation will not cost much time.
+More speciﬁcally, we ﬁrst assign 2 global counters k and
+j. Then all threads repeat the following two parts independently and simultaneously:
+Part I: Computing the Full Gradient
+1) (Read) Read the parameter x̃s0 from the global memory to
+the local memory without locks, and set j = 0.
+2) (Loop) While j < n
+3)
+j = j + 1, globally,
+4)
+Compute the gradient g = g + ∇fj (x̃s0 ) locally,
+5) (End).
+6) Compute the full gradient ∇f (x̃s0 ) = ∇f (x̃s0 ) + n1 g globally and with locks .
+7) (Synchronization) Wait for other threads to ﬁnish this
+step.
+Part II: Variance Reduced Gradient Descent
+1) (Read) Read the full gradient ∇f (x̃s0 ) from the global
+memory to the local memory without locks, and set k = 0.
+2) (Loop) while k < m
+3)
+k = k + 1, globally,
+4)
+(Read) x̃sk from the global memory with locks ,
+5)
+(Sample) Randomly select a training samples ik ,
+6)
+Compute vks through Eq. (2) locally.
+7)
+Update x̃sk+1 = x̃sk − γvks globally and with locks .
+8) (End).
+9) (Synchronization) Wait for other threads to this step and
+then set x̃s+1
+= x̃sm globally.
+0
+
+xsj(k) ∈ {xs1 , xs2 , · · · , xsk }.
+
+(5)
+
+ASVRG-wild
+Now we describe ASVRG-wild, which is common in shared
+memory multi-core systems. We consider the case where the
+x is updated without locks, since the dimension of parameters is often large in real problems. In practice, we only need
+to change the steps (4) and (7) in Part II of ASVRG-atom
+to
+4) read x̃ from the global memory without locks.
+7) update x̃sk+1 = x̃sk − γvks without locks.
+When x is updated without locks, it will cause inconsistent read at the “read” step. Unlike SVRG-atom, the value of
+x might not be a real state of x during the “read” step. Since
+if one thread reads the x when other thread is updating it, the
+thread will receive a “middle” state of x. Some coordinates
+of x have been updated, while others have not. We still use
+xsj(k) to denote the state of x which is at the “read” time during the k-th iteration and is used for calculating the gradient.
+In this time, xsj(k) might not belong to {xs1 , xs2 , · · · , xsk }.
+However, though x does not work as an atom, the update
+on a single coordinate can be considered to be atomic on
+GPU and Data Processing System (Niu et al. 2011), (Lian
+et al. 2015). To characterize this asynchronous implementation, (Lian et al. 2015) then deﬁne the update on each single
+coordinate of x and assume that the update order is random.
+They ﬁnally model the wild update as a Stochastic Coordinate Descent process. We do not follow their assumption.
+
+796
+
+for some ρ1 > 1 and ρ2 > 1, then for any s ≥ 0 and k ≥ 0,
+we have
+
+
+
+
+E ∇f (xsk )2 + L2 E xsk − xs0 2
+ 
+
+
+
+≤ ρ1 E ∇f (xsk+1 )2 + L2 E xsk+1 − xs0 2 ,(11)
+
+We still deﬁne the update on the whole vector x and directly
+represent xsj(k) . Since the update on a single coordinate is
+atomic, we have
+xsj(k) = xsk −
+
+k−1
+
+
+
+
+s
+,
+γIk(l) vj(l)
+
+(6)
+
+and
+
+l=1
+
+where Ik(l) is an R → R function, indicating whether the
+s
+elements of vj(l)
+have been returned from the local memory
+and written into x at the “read” step in the k-th iteration and
+s
+(p) is the
+d is the dimension of the variable x. Suppose vj(l)
+s
+p-th element of vj(l) with p ranging from 1 to d. We have
+d
+
+d
+
+
+s
+ s 
+(p) has been returned,
+0,
+if vj(l)
+Ik(l) vj(l)
+(p) =
+s
+vj(l)
+(p), otherwise.
+
+≤
+
+For ASVRG-atom, ρ2 can be set as ρτ1 if Eq. (11) is satisﬁed, since xsj(k) is some old value of xsk . However, for
+ASVRG-wild, it is not true. The proof of Lemma 1 has
+two major
+First, we analyse E ∇f (xsk )2 +
+
+ s distinctions.
+2
+s 2
+L E xk − x0  , while the others (Liu et al. 2015),
+(Hsieh, Yu,
+ and Dhillon
+ 2015), (Peng et al. 2015) only consider E ∇f (x)2 directly. Second, unlike (Lian et al.
+2015), (Liu et al. 2015), (Hsieh, Yu, and Dhillon 2015), the
+update in our algorithm is deﬁned on the whole vector x and
+our result does not depend on the dimension of the variable.
+This is because that we use Eq. (8) to represent xsj(k) and
+
+
+carefully bound E xsk − xsj(k) 2 in the proof. Lemma 1
+is the key result for analysing the convergence properties.
+Now we demonstrate the convergence results. It uses the
+technique of the proof in serial SVRG (Reddi et al. 2016).
+The general results are shown in Theorems 1 and 2. We ﬁrst
+consider the case when ASVRG can achieve linear speed up.
+
+(7)
+
+Then in this way, ASVRG-wild can also be formulated as
+in Algorithm 2. One can ﬁnd that Eq. (5) is actually a simply case of Eq. (6). So the difference between ASVRG-atom
+and ASVRG-wild is that xsj(k) satisﬁes both Eq. (5) and
+Eq. (6) in ASVRG-atom, while xsj(k) only satisﬁes Eq. (6)
+in ASVRG-wild. By using Eq. (6), we provide a uniﬁed convergence analysis for the two algorithm.
+
+Convergence Analysis
+In this section, we give a uniﬁed convergence analysis for
+ASVRG-atom and ASVRG-wild. It mainly consists of three
+parts. We ﬁrst bound the variance of gradient in Lemma 1.
+Then we analyse the convergence rate in two cases. The ﬁrst
+case ensures ASVRG to achieve linear speed up. In the second case, we analyse the convergence rate with no assumptions. The proofs can be found in Supplementary Material2 .
+The most important value in the analysis of asynchronous
+algorithms is the delay parameter τ . We deﬁne that all the
+updates before the (k − τ − 1)-th iteration have been written
+into x at the “read” step of the k-th iteration. Thus Eq. (6)
+can be rewritten as:
+k−1
+
+
+
+s
+xsj(k) = xsk −
+γIk(l) vj(l)
+.
+(8)
+
+Theorem 1. Suppose fi (i ∈ {1, 2, · · · , n}) have LLipschitz continuous gradients,α and x is updated as in Alμ
+gorithm 2. Assume that τ ≤ n 2 (0 < α ≤ 1). Set γ = Ln
+α
+1
+with 0 < μ ≤ 8(e−1)e
+and m = n3α/2 . Then we have
+S−1 m−1
+ nα (f (x00 ) − f (x∗ ))
+1  
+, (13)
+E ∇f (xsk )2 ≤
+K s=0
+Kν
+k=0
+
+where K = mS, ν =
+of f (x).
+
+l=k−τ
+
+τ actually indicates the number of processors that are involved in computation. From Algorithm 2, we have 1 ≤ τ ≤
+m.
+To prove convergence, we need to bound the variance of
+the gradient. In ASVRG, Eq. (4) changes to
+ s
+
+
+
+
+
+E vj(k)
+2 ≤ E ∇f (xsj(k) 2 +L2 E xsj(k) − xs0 2 .
+
+Then Lemma 1 builds the relation between
+
+xsj(k)
+
+and
+
+1
+3 μ,
+
+and f (x∗ ) is the minimal value
+
+We rewrite the above results in terms of IFO calls in the
+following corollary. The IFO calls have included the n IFO
+calls to compute the full gradient for every m iterations.
+Corollary 1. Suppose fi (i ∈ {1, 2, · ·α· , n}) have LLipschitz continuous gradients and τ ≤ n 2 (0 < α ≤ 1).
+With the parameters in Theorem 1, the IFO complexity of
+Algorithm 2 for achieving an -accurate solution is:
+
+
+α
+IFO calls = O nmax(α,1− 2 ) / .
+(14)
+
+(9)
+
+xsk .
+
+Lemma 1. Suppose fi (i ∈ {1, 2, · · · , n}) have L-Lipschitz
+continuous gradients, and x is updated as in Algorithm 2.
+Then if the step size γ satisﬁes
+⎧
+⎫
+⎪
+⎪
+⎨
+⎬
+1
+ρ1 − 1
+ρ2 − 1
+√ √ ,
+γ ≤ min
+, (10)
+τ
+L⎪
+⎩ 2 2ρ1 ρ2 2√2ρ 12 ρ 32 √ρ12 −1 ⎪
+⎭
+1 2 ρ1 −1
+2
+Supplementary Material can be downloaded
+http://www.cis.pku.edu.cn/faculty/vision/zlin/zlin.htm
+
+
+
+
+
+E ∇f (xsj(k) )2 + L2 E xsj(k) − xs0 2
+ 
+
+
+
+ρ2 E ∇f (xsk )2 + L2 E xsk − xs0 2 . (12)
+
+Corollary 1 demonstrates the interplay between the step
+size and the IFO complexity. The result is similar to the serial SVRG (Reddi et al. 2016). When τ ≤ n1/3 , thenumber
+
+2/3
+of IFO calls is minimized when α = 2/3 and it is O n  .
+This shows that ASVRG can achieve linear speed up (to the
+stationary point) when τ ≤ n1/3 .
+Now we demonstrate the result with no assumption on τ .
+
+from:
+
+797
+
+Theorem 2. Suppose fi (i ∈ {1, 2, · · · , n}) have LLipschitz continuous gradients, and x is updated as in Algo1
+, 0 < α ≤ 1,
+rithm 2. Set γ = μ/(Lnα τ β ) (0 < μ ≤ 8(e−1)e
+and 0 < β ≤ 1) and m = n
+
+3α
+2
+
+τ
+
+3β−1
+2
+
+Experiments
+In this section, we conduct experiments on a shared memory multi-core system to validate the efﬁciency of our algorithm empirically. We directly show the experimental results of ASVRG-wild as it is faster and more suitable for the
+shared memory multi-core system. We also test the speedup
+property of ASVRG-atom, which is shown in Supplementary Material. Due to the locks, it is slower than ASVRGwild. Our experiments consist of two parts. The ﬁrst part
+aims to validate the speedup property. In the second part,
+we do a similar experiment to that in (Lian et al. 2015) to
+compare our algorithm with ASGD to show the superiority
+of our algorithm in speed. Since the advantages in speed for
+asynchronous algorithms over synchronous algorithms have
+been widely witnessed in many literatures (Hsieh, Yu, and
+Dhillon 2015), (Agarwal and Duchi 2011), (Niu et al. 2011),
+we ignore the experiment of comparing our algorithm with
+synchronous SVRG. Due to much more locks, synchronous
+SVRG is slower than ASVRG-atom. For a fair comparison,
+we implement all methods in C++ using POSIX threads as
+the parallel programming framework. All the experiments
+are performed on an Intel multi-core 4-socket machine with
+128 GB memory. Each socket is associated with 8 computation cores. A variant that we adopt in experiments is that we
+implement all the algorithms in a mini-batch mode, which is
+a common implementation in neural networks. The convergence analysis for ASVRG can be extended to this mode.
+Following (Lian et al. 2015), we focus on two types of
+speedup: iteration speedup and running time speedup. The
+iteration speedup is exactly the speedup we discussed in the
+whole paper. Given T workers, it is computed as
+
+. Then we have
+
+S−1 m−1
+
+nα τ β (f (x00 ) − f (x∗ ))
+1  
+E ∇f (xsk )2 ≤
+,
+K s=0
+Kν
+
+(15)
+
+k=0
+
+where K = mS and ν = 13 μ.
+Corollary 2. Suppose fi (i ∈ {1, 2, · · · , n}) have LLipschitz continuous gradients. With the parameters in Theorem 2, the IFO complexity of Algorithm 2 for achieving an
+-accurate solution is:
+
+
+1−β
+α
+(16)
+IFO calls = O nmax(α,1− 2 ) τ max(β, 2 ) / .
+From Corollary 2, the number of IFO 
+calls is minimized
+
+2/3 1/3
+when α = 23 and β = 13 , which is O n τ
+. Since
+τ ≤ m = n, n2/3 τ 1/3 ≤ n. This shows that with asynchronous updating, SVRG still has a less number of IFOs
+when compared with GD.
+The following theorem gives a probability estimate on the
+convergence of Algorithm 2.
+Theorem 3. Suppose fi (i ∈ {1, 2, · · · , n}) have LLipschitz continuous gradients, and x is updated as in Algorithm 2. Then for  > 0 and η ∈ (0, 1) and K = Sm, we
+have the probability
+
+ S−1 m−1
+1 
+s 2
+∇F (xk ) ≤  ≥ 1 − η,
+(17)
+P
+K s=0
+
+iteration speedup =
+
+k=0
+
+provided that one of the following conditions holds: when
+τ ≤ nα/2 , we require
+
+
+nα F (x0 ) − F (x∗ )
+,
+(18)
+K≥
+νη
+
+where # is the iteration count when the same level of precision is achieved. This speedup is less affected by the hardware. The running time speedup is the actual speedup. It is
+deﬁned as:
+running time speedup =
+
+and the parameters are chosen as in Theorem 1, while there
+is no assumption on τ , we need
+
+
+nα τ β F (x0 ) − F (x∗ )
+,
+(19)
+K≥
+νη
+
+total running time using one worker
+.
+total running time using T workers
+
+The running time speedup is seriously affected by the hardware. It is less objective than the iteration speedup.
+
+Speedup Experiment
+
+and the parameters are chosen as in Theorem 2.
+
+We experiment on the problem of multiclass classiﬁcation
+using neural networks. It is a typical nonconvex problem in
+machine learning.
+Experimental Setup. Following (Reddi et al. 2016), we
+train a neural network with one fully connected layer of 100
+nodes. We experiment on two dataset: MNIST dataset3 and
+CIFAR10 dataset (Krizhevsky and Hinton 2009). Both the
+two datasets have ten classes. They are widely used for testing neural networks. More details about the datasets can be
+found in Table 2. The data are normalized to the interval
+[0, 1] before the experiment. An additional experiment in
+
+Distinguished from the analysis of ASGD (Lian et al.
+2015), we do not assume that the update order on coordinates is random in the “wild” scheme and give uniﬁed proofs
+for the two schemes.For ASGD, the convergence rate is
+only an asymptotic O 12 . We show that with the VR trick,
+2
+
+ASGD can be accelerated to a non-asymptotic O( n3 ) con1
+
+# of itertions using one worker
+× T,
+# of iterations using T workers
+
+2
+
+1
+
+vergence rate when τ ≤ n 3 and a non-asymptotic O( n 3τ 3 )
+convergence rate where there is no assumption on τ . When
+compared with the serial SVRG, ASVRG can achieve linear
+1
+speed up when τ ≤ n 3 and also has less number of IFOs
+than GD when there is no assumption on τ .
+
+3
+
+798
+
+http://yann.lecun.com/exdb/mnist/
+
+0.32
+
+0.16
+
+0.08
+
+0.64
+
+0.32
+
+1-core SVRG
+4-core SVRG
+8-core SVRG
+12-core SVRG
+16-core SVRG
+20-core SVRG
+1-core SGD
+12-core SGD
+
+1.8
+1.6
+1.4
+
+0.16
+
+1.2
+1
+
+0.8
+
+0.6
+
+2
+
+1-core SVRG
+4-core SVRG
+8-core SVRG
+12-core SVRG
+16-core SVRG
+20-core SVRG
+
+1.8
+1.6
+1.4
+
+tranning loss (log)
+
+0.64
+
+2.2
+
+2
+
+1-core SVRG
+4-core SVRG
+8-core SVRG
+12-core SVRG
+16-core SVRG
+20-core SVRG
+
+1.28
+
+tranning loss (log)
+
+tranning loss (log)
+
+1.28
+
+2.2
+
+3
+2.56
+
+1-core SVRG
+4-core SVRG
+8-core SVRG
+12-core SVRG
+16-core SVRG
+20-core SVRG
+1-core SGD
+12-core SGD
+
+tranning loss (log)
+
+3
+2.56
+
+1.2
+1
+
+0.8
+
+0.6
+
+0.08
+
+0.4
+
+0.04
+
+0.4
+
+0.04
+
+10
+
+20
+
+30
+
+40
+
+50
+
+60
+
+500
+
+1000
+
+iteration/n
+
+1500
+
+2000
+
+2500
+
+10
+
+3000
+
+30
+
+40
+
+50
+
+60
+
+1000
+
+2000
+
+3000
+
+4000
+
+iteration/n
+
+time(s)
+
+(a) Loss vs. iteration on MNIST
+
+20
+
+(b) Loss vs. time on MNIST
+
+5000
+
+6000
+
+7000
+
+8000
+
+9000
+
+10000
+
+time(s)
+
+(c) Loss vs. iteration on CIFAR10
+
+(d) Loss vs. time on CIFAR10
+
+Figure 1: Results of the speedup experiment. For curves of loss against iterations, the horization axis is the number of effective
+pass through the data, which has included the cost of calculating full gradients for SVRG.
+thetic data from a fully connected neural network with 5
+layers (400 × 100 × 50 × 20 × 10) and 46, 380 parameters totally. The input vector and all parameters are generated from N (0, 1) Gaussian distribution. The output vector
+is constructed by applying the network parameter to the input vector plus some Gaussian random noise. We generate
+40, 000 samples.
+Like (Lian et al. 2015), we focus on 2 norm of the gradients. The parameters in the two algorithms are tuned on
+12 cores to give the best results. For ASGD, we choose the
+mini-batch size to be 50, and the step size to be 10−4 , which
+we ﬁnd is better than the setting used in (Lian et al. 2015).
+Figure 2 draws the curves of ∇f (x)2 against running
+time using 8, 12, 20 cores, respectively. Like serial SVRG,
+ASVRG is not faster at the early stage when compared with
+ASGD. But after dozens of epochs, the norm of gradient by
+ASVRG decreases faster. This demonstrates that ASVRG
+has a faster convergence rate than ASGD does.
+
+Table 2: More details about MNIST and CIFAR10.
+Datasets
+MNIST
+CIFAR10
+
+Type
+28 × 28 grayscale
+32 × 32 RGB
+
+# Images
+60K
+50K
+
+# Params
+79.5K
+308.3K
+
+Table 3: Iteration and running time speedup over SVRG on
+MNIST and CIFAR10. (Thr- and Iter, are short for thread
+and iteration, respectively.).
+Mnist
+Cifar
+
+iter.
+time
+iter.
+time
+
+thr-1
+1
+1
+1
+1
+
+thr-4
+3.94
+3.59
+4.01
+3.96
+
+thr-8
+7.55
+6.47
+7.92
+6.87
+
+thr-12
+11.85
+9.97
+12.15
+10.31
+
+thr-16
+15.53
+11.44
+15.59
+13.02
+
+thr-20
+19.28
+12.58
+19.31
+14.53
+
+which we train a neural network with 7 layers on MNIST
+is shown in Supplementary Material.
+Parameters and Initialization. For SVRG, we choose a
+ﬁxed step size, and choose γ that gives the best performance
+on one core. When there are more than one core, the step size
+does not change. For SGD, the step size is chosen based on
+(Reddi et al. 2016), which is γt = γ0 (1+γ  t/n)−1 , where
+γ0 and γ  are chosen to give the best performance. We use
+the normalized initialization in (Glorot and Bengio 2010),
+(Reddi etal. 2016). Theparameters are chosen uniformly
+from [− 6/(ni + no ), 6/(ni + no )], where ni and no
+are the numbers of input and output layers of the neural networks, respectively. We choose a mini-batch size to be 100,
+which is a common setting in training neural networks.
+Results. We draw the curves of objective loss against iterations and running time in Figure 1, and report their speedup
+in Table 3. From the results, we obtain the following conclusions. First, the linear speedup is achievable through iteration speedup. Second, due to the hardware, time speedup
+is lower than iteration speedup. Third, ASVRG still has an
+obvious actual (time) speedup when compared with serial
+SVRG, e.g., there are 12 times speedup on 20 cores.
+
+Conclusion
+This paper proposes an asynchronous variant of SVRG on
+nonconvex problems. We give the condition on the delay parameter τ to make the asynchronous algorithm achieve linear speed up. We also analyse the convergence rate with no
+assumption on τ . We experiment on a shared memory multicore system to demonstrate the efﬁciency of the proposed
+ASVRG algorithm.
+
+Acknowledgements
+Zhouchen Lin is supported by National Basic Research Program of China (973 Program) (grant no. 2015CB352502),
+National Natural Science Foundation (NSF) of China (grant
+nos. 61625301 and 61231002), and Qualcomm.
+
+References
+Agarwal, A., and Duchi, J. C. 2011. Distributed delayed
+stochastic optimization. In Proc. Conf. Advances in Neural
+Information Processing Systems.
+Allen-Zhu, Z., and Hazan, E. 2016. Variance reduction for
+faster non-convex optimization. In Proc. Int’l. Conf. on Machine Learning.
+Dean, J.; Corrado, G.; Monga, R.; Chen, K.; Devin, M.;
+Mao, M.; Senior, A.; Tucker, P.; Yang, K.; Le, Q. V.; et al.
+
+Efﬁciency Validation
+To demonstrate the efﬁciency of our ASVRG, we do a similar experiment to that in (Lian et al. 2015) to compare with
+ASGD. Following (Lian et al. 2015), we generate the syn-
+
+799
+
+10 1
+
+10 -1
+
+10 -1
+
+10 -2
+
+10 -4
+10 -5
+
+10
+
+ 
+
+-3
+
+-3
+
+10 -4
+10 -5
+
+10 -3
+10 -4
+10 -5
+
+10 -6
+
+10 -6
+
+10 -6
+
+-7
+
+-7
+
+10 -7
+
+10 -8
+
+10 -8
+
+10 -8
+
+10 -9
+
+10 -9
+
+10
+
+10
+
+500
+
+1000
+
+1500
+
+2000
+
+2500
+
+3000
+
+3500
+
+20-core SGD
+20-core SVRG
+
+10 0
+10 -1
+
+10 -2
+
+ 
+
+ 
+
+12-core SGD
+12-core SVRG
+
+10 0
+
+10 -2
+
+10
+
+10 1
+
+10 1
+
+8-core SGD
+8-core SVRG
+
+10 0
+
+200
+
+400
+
+600
+
+800
+
+time(s)
+
+1000
+
+1200
+
+1400
+
+time(s)
+
+1600
+
+1800
+
+2000
+
+2200
+
+2400
+
+10 -9
+
+200
+
+400
+
+600
+
+800
+
+1000
+
+1200
+
+1400
+
+time(s)
+
+Figure 2: Experimental results of efﬁciency validation. The ﬁgures from left to right represent the results on 8, 12, and 20 cores,
+respectively.
+2012. Large scale distributed deep networks. In Proc. Conf.
+Advances in Neural Information Processing Systems.
+Defazio, A.; Bach, F.; and Lacoste-Julien, S. 2014. SAGA:
+A fast incremental gradient method with support for nonstrongly convex composite objectives. In Proc. Conf. Advances in Neural Information Processing Systems.
+Ghadimi, S., and Lan, G. 2013. Stochastic ﬁrst-and
+zeroth-order methods for nonconvex stochastic programming. SIAM Journal on Optimization 23(4):2341–2368.
+Glorot, X., and Bengio, Y. 2010. Understanding the difﬁculty of training deep feedforward neural networks. In Proc.
+Int’l. Conf. on Artiﬁcaial Intelligence and Statistics.
+Hsieh, C.-J.; Yu, H.-F.; and Dhillon, I. S. 2015. PASSCoDe:
+Parallel asynchronous stochastic dual co-ordinate descent.
+In Proc. Int’l. Conf. on Machine Learning.
+Johnson, R., and Zhang, T. 2013. Accelerating stochastic gradient descent using predictive variance reduction. In
+Proc. Conf. Advances in Neural Information Processing Systems.
+Krizhevsky, A., and Hinton, G. 2009. Learning multiple
+layers of features from tiny images. Computer Science Department, University of Toronto, Technical Report 1(4):7.
+Lian, X.; Huang, Y.; Li, Y.; and Liu, J. 2015. Asynchronous
+parallel stochastic gradient for nonconvex optimization. In
+Advances in Neural Information Processing Systems.
+Liu, J.; Wright, S. J.; Ré, C.; Bittorf, V.; and Sridhar, S. 2015.
+An asynchronous parallel stochastic coordinate descent algorithm. Journal of Machine Learning Research 16(285322):1–5.
+Nesterov, Y. 2013. Introductory lectures on convex optimization: A basic course, volume 87. Springer Science &
+Business Media.
+Niu, F.; Recht, B.; Re, C.; and Wright, S. 2011. HOGWILD!: A lock-free approach to parallelizing stochastic gradient descent. In Proc. Conf. Advances in Neural Information Processing Systems.
+Paine, T.; Jin, H.; Yang, J.; Lin, Z.; and Huang, T. 2013. Gpu
+asynchronous stochastic gradient descent to speed up neural
+network training. arXiv preprint arXiv:1312.6186.
+
+Peng, Z.; Xu, Y.; Yan, M.; and Yin, W. 2015. Arock: an
+algorithmic framework for asynchronous parallel coordinate
+updates. arXiv preprint arXiv:1506.02396.
+Petroni, F., and Querzoni, L. 2014. Gasgd: stochastic gradient descent for distributed asynchronous matrix completion
+via graph partitioning. In Proc. ACM Conf. on Recommender
+Systems, 241–248. ACM.
+Reddi, S. J.; Hefny, A.; Sra, S.; Póczós, B.; and Smola, A.
+2015. On variance reduction in stochastic gradient descent
+and its asynchronous variants. In Proc. Conf. Advances in
+Neural Information Processing Systems.
+Reddi, S. J.; Hefny, A.; Sra, S.; Póczós, B.; and Smola, A.
+2016. Stochastic variance reduction for nonconvex optimization. In Proc. Int’l. Conf. on Machine Learning.
+Schmidt, M.; Roux, N. L.; and Bach, F. 2013. Minimizing ﬁnite sums with the stochastic average gradient. arXiv
+preprint arXiv:1309.2388.
+Xiao, L., and Zhang, T. 2014. A proximal stochastic gradient
+method with progressive variance reduction. SIAM Journal
+on Optimization 24(4):2057–2075.
+Yun, H.; Yu, H.-F.; Hsieh, C.-J.; Vishwanathan, S.; and
+Dhillon, I. 2014. NOMAD: Non-locking, stOchastic Multimachine algorithm for Asynchronous and Decentralized matrix completion. Proc. of VLDB Endowment 7(11):975–986.
+Zhang, R., and Kwok, J. T. 2014. Asynchronous distributed
+ADMM for consensus optimization. In Proc. Int’l. Conf. on
+Machine Learning.
+
+800
+
+

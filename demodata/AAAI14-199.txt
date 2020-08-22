@@ -1,0 +1,923 @@
+Proceedings of the Twenty-Eighth AAAI Conference on Artificial Intelligence
+
+Congestion Games for V2G-Enabled EV Charging
+Benny Lutati1 , Vadim Levit1 , Tal Grinshpoun2 , Amnon Meisels1
+1
+
+Department of Computer Science
+Ben-Gurion University of the Negev, Be’er-Sheva, Israel
+2
+Department of Industrial Engineering and Management
+Ariel University, Ariel, Israel
+
+Abstract
+
+1973). A Congestion game consists of players and resources.
+The cost of each resource depends on the number of players
+that choose to use it. The overall cost of each player is simply the sum of the costs of all the resources that the player
+selects to use. The connection to the charging of EVs is clear
+– each player is an agent representing a single EV and the resources are the time-slots in which the agents are interested
+in charging their batteries.
+Congestion games are closely related to another important
+class of games – potential games (Monderer and Shapley
+1996). Particularly, Monderer and Shapley proved that every
+congestion game is an exact potential game. In a potential
+game there exists a global function (the potential function)
+that coincides with the incentives of all the players. More
+precisely, the set of pure-strategy Nash equilibria (PNE) in
+a potential game is equivalent to the local minima of the potential function. Potential games, inherently including congestion games, become interesting when the potential function has some desirable global meaning. In such games the
+actions of strategic, non-cooperative, players leads to a desirable global outcome.
+The increasing popularity of GIVs introduces new opportunities to the EV charging/discharging domain. A GIV
+parked for long periods of time could sell power back at peak
+hours. Moreover, a fleet of cars, with heterogeneous parking
+times, could balance its charging loads and avoid charging at
+expensive peak hours. Consequently, GIVs create the need
+for a new class of games that enable both charging and discharging of the EVs batteries. The original version of congestion games falls short of describing the desired class of
+games, since Rosenthal only considered situations in which
+players consume resources (Rosenthal 1973). Here, players
+may also free up resources by discharging their batteries during some time-slots. To deal with this situation, a generalization of the congestion game model, that is termed here feedback congestion games, is introduced. The proposed generalization is shown formally to still satisfy the same connection to potential games as the original congestion games.
+More precisely, it is proven in Section 3 that every feedback
+congestion game is an exact potential game.
+This is not the first time that a real-world problem motivates a generalization of congestion games. Liu, Ahmad,
+and Wu (2009) define congestion games with resource reuse
+(CG-RR), which include an interference set for each player.
+
+A model of the problem of charging and discharging
+electrical vehicles as a congestion game is presented. A
+generalization of congestion games – feedback congestion games (FCG) – is introduced. The charging of gridintegrated vehicles, which can also discharge energy
+back to the grid, is a natural FCG application. FCGs are
+proven to be exact potential games and therefore converge to a pure-strategy Nash equilibrium by an iterated
+better-response process. A compact representation and
+an algorithm that enable efficient best-response search
+are presented. A detailed empirical evaluation assesses
+the performance of the iterated best-response process.
+The evaluation considers the quality of the resulting solutions and the rate of convergence to a stable state. The
+effect of allowing to also discharge batteries using FCG
+is compared to scenarios that only include charging and
+is found to dramatically improve the predictability of
+the achieved solutions as well as the balancing of load.
+
+1
+
+Introduction
+
+Electric Vehicles (EVs) are an important part of the
+transition plan to a low carbon economy. New designs,
+such as plug-in hybrid vehicles and range-extended electric vehicles, are part of the expected future automotive
+DNA (Mitchell, Borroni-Bird, and Burns 2010). EVs need
+to be charged daily. When parked during office hours, EVs
+are expected to charge in a well-balanced pattern in order
+to avoid overloading the smart grid (Gerding et al. 2011;
+Vandael et al. 2011). EVs are expected to be parked a large
+fraction of the working day and may be able to charge part
+of the time and be used as storage (Kamboj et al. 2010).
+Consequently, it has been proposed that EVs could sell part
+of the energy stored in their batteries back to the grid. This
+concept is termed Vehicle-to-Grid (V2G). In the following,
+the term Grid-Integrated Vehicles (GIVs) will be used to describe EVs that support V2G sessions. Such vehicles may be
+used to balance the load on the grid by charging when demand is low and selling power back to the grid (discharging)
+when demand is high (Kempton and Tomić 2005b).
+The present paper models the problem of charging (and
+discharging) EVs as a congestion game (CG) (Rosenthal
+Copyright c 2014, Association for the Advancement of Artificial
+Intelligence (www.aaai.org). All rights reserved.
+
+1440
+
+back home, for example). This pattern may lead to large
+peaks, such that will have to be tackled by extending the
+grid infrastructure which in turn will reduce or even dismiss
+the positive effects on the environment (Stein et al. 2012;
+Sovacool and Hirsh 2009).
+One solution for the EVs charging problem is to try to
+schedule the charging of EVs in a way that will reduce
+the peaks and balance the load. This scheduling however
+will have to take into consideration the fact that different consumers (EVs) may have different time constraints
+and willingness to pay. Grid-Integrated Vehicles are a special kind of EVs that support Vehicle-to-Grid sessions. In
+a V2G session a vehicle may sell power, stored in its
+battery, back into the grid (Kempton and Letendre 1997;
+Kempton and Tomić 2005a). Since most vehicles are parked
+over 90% of the time (Kamboj et al. 2010), some GIVs that
+have rather loose time constraints can sell energy stored in
+their battery back to the grid and in this way help to serve
+the charging needs of other, more tightly time-constrained,
+GIVs. Doing so in a smart way can be beneficial both to the
+GIVs owners and to the electrical grid operators. The GIV
+owners are being paid for helping distribute the load; this
+payment can then reduce the cost of the GIV charge.
+Formally, the GIV charging problem takes the form
+of the tuple < V, T, {lt }t∈T , {Sv }v∈V
+>, where
+V = {1, 2, . . . , n} is a set of vehicles (GIVs) and T is a set
+of time-slots. For each time-slot t ∈ T one defines lt to be
+the initial load on the power grid that exists as background
+to the problem (e.g., by residential homes or industry). For
+each v ∈ V , Sv ⊆ {charge, do-nothing, discharge}|T | is a
+set of assignments of actions (a strategy) for the different
+time-slots. Each assignment sv ∈ Sv encodes a valid combination of time-slots during which the GIV is available for
+charge/discharge and that coincides with its owners preferences. Given this input, the goal is to find a schedule (or a
+strategy profile) S = {s1 , s2 , . . . , sn }, such that it balances
+the loads inflicted by the charging operations combined with
+the initial background load {lt }t∈T .
+
+Consequently, the cost of each user is a function of the number of interfering players. By using the CG-RR generalization, the authors were able to model the problem of resource
+competition in wireless communication.
+A closely related research (Ibars, Navarro, and Giupponi
+2010) models a distributed demand-side management system using traditional congestion games that do not allow
+selling power back to the grid. This research is similar to our
+proposed method in its applicability to the smart grid. However, distributed demand side management is mainly considered for residual areas; in such areas, by using our proposed
+generalization one can take advantages of micro-storage devices (Vytelingum et al. 2010; Voice et al. 2011).
+Several game-theoretic approaches that rely on some central authority were recently proposed for the EV charging
+domain. In the vehicle-to-aggregator interaction game (Wu,
+Mohsenian-Rad, and Huang 2012) the aggregator controls
+the prices for the nearest time-slot in a V2G setting in a
+manner that enables achieving an optimal outcome for the
+grid in a distributed fashion. A different approach uses iterative Boolean games to solve a simpler version of the charging problem (Levit, Grinshpoun, and Meisels 2013). There,
+a principal manipulates the players into reaching a PNE in a
+dichotomous manner, i.e., without involving prices and discharging. Although these approaches are decentralized, they
+heavily rely on the involvement of a central entity, which is
+not the case in the proposed method of the present paper.
+An empirical evaluation of the performance of congestion games and their respective feedback congestion games
+is presented. That is, the effect of allowing to also discharge
+batteries is compared to situations which include charging
+only scenarios. Both alternatives are also compared to a
+naı̈ve approach in which each GIV starts charging at the moment it is connected to the grid. The evaluation considers the
+quality of the resulting solutions and the number of rounds
+until convergence. The experimentation of large problems
+was possible by using a compact representation and a novel
+algorithm that enable efficient best-response search.
+The plan of the paper is as follows. The GIV charging
+problem is introduced in Section 2. Potential and congestion
+games, as well as the feedback congestion games generalization, are formally described in Section 3. The representation
+of the GIV charging problem as a feedback congestion game
+is presented in Section 4. A compact representation of the
+problem and an algorithm for finding the best response are
+introduced in Section 5. An extensive empirical evaluation
+of the proposed games is in Section 6. Section 7 outlines our
+conclusions and future work directions.
+
+2
+
+3
+
+Potential and Congestion Games
+
+The class of potential games is characterized as games that
+admit a potential function on the joint strategy space, such
+that the gradient of the potential function is the gradient
+of the constituents’ private utility function (Monderer and
+Shapley 1996). A potential function has a natural interpretation as representing opportunities for improvement to a
+player that deviates from any given strategy profile (Chapman, Rogers, and Jennings 2008). A potential game with
+I = {1, 2, . . . , n} players and a set of the available strategies for these players {Si }i∈I has several unique properties.
+
+The GIV Charging Problem
+
+Electric vehicles received a lot of attention in the recent
+years. Generally, EVs are associated with their positive effects over the environment and especially low carbon emissions and noise reduction (Kemp et al. 2010). However,
+their widespread use is also expected to place considerable
+strains on existing electricity distribution networks. Moreover, many EVs are expected to be charged during the same
+time phase (between the times that the majority of the population is driving to work and the time they are driving
+
+1. The game has at least one PNE.
+2. The local optima of the potential function are PNEs of the
+game.
+3. Given a strategy profile S = {s1 , s2 , . . . , sn } which is
+a selection of strategies for each player in the game, an
+improvement step of player i is a change of its strategy
+from si to s0i , such that the utility ui : Si → R of
+
+1441
+
+player i increases. In potential games, sequences of improvement steps do not run into cycles. Such sequences
+of improvement steps reach a PNE after a finite number
+of steps (Monderer and Shapley 1996). This is sometimes
+termed an iterated better-response process or the finite improvement property.
+
+Definition 3 (Feedback Congestion Game). A feedback
+congestion game is a tuple < I, T, {Si }i∈I , {ct }t∈T >,
+where I = {1, 2, . . . , n} is a set of producer/consumer
+players (henceforth termed agents); T is a set of congestible resources; each agent i ∈ I has a set of strategies
+Si ⊆ {−1, 0, 1}|T | , each strategy si ∈ Si is an assignment
+of resources usage – 0 means no use, 1 means consume, and
+-1 means produce; and ct : N → R is a cost function associated with resource t ∈ T . The utility agent i has for selecting
+strategy si is assumed to be proportional to
+X
+si [t] + 1
+ui (si , s−i ) = −1 ·
+si [t] · ct (dt +
+) (4)
+2
+
+Definition 1 (exact potential game). A game is an exact
+potential game if there exists a function Φ : S → R such
+that for each player i and for any two strategies si , s0i ∈ Si
+the following holds
+ui (si , s−i ) − ui (s0i , s−i ) = Φ(si , s−i ) − Φ(s0i , s−i ) (1)
+
+t∈T
+
+where s−i = S \ {si } denotes the set of the selected strategies of every player except i.
+
+Theorem 1. A feedback congestion game is an exact potential game.
+
+The class of congestion games models scenarios in which
+players use congestible resources (Rosenthal 1973). The
+congestion level of resources is a function of the number of
+players that use them. Our definition of the classical congestion game as given below, is slightly different yet equivalent
+to the definition of Rosenthal (1973).
+
+Proof. In order to show that a feedback congestion game
+is an exact potential game one needs to provide a potential
+function Φ : S → R that satisfies the condition of Equation 1. We will show that the potential function
+Φ(si , s−i ) = −1 ·
+
+Definition 2 (congestion game). A congestion game is a
+tuple < I, T, {Si }i∈I , {ct }t∈T >, where I = {1, 2, . . . , n}
+is a set of players, T is a set of congestible resources, Si ⊆
+2|T | is the strategy space of player i, and ct : N → R is
+a cost function associated with resource t ∈ T (Rosenthal
+1973). The utility of a player for selecting a strategy si is
+assumed to be proportional to
+X
+ui (si , s−i ) = −1 ·
+si [t] · ct (dt + 1)
+(2)
+
+∀t ∈ T , si [t] · ct (dt +
+
+si [t] + 1
+s0 [t] + 1
+) − s0i [t] · ct (dt + i
+)
+2
+2
+dt +s0i [t]
+
+dt +si [t]
+
+=
+
+X
+
+ct (x) −
+
+X
+
+ct (x)
+
+x=1
+
+x=1
+
+(6)
+
+In order to prove the correctness of Equation 6 one must
+consider all possible cases. The same outcome results when
+switching between the values of si [t] and s0i [t] (only the sign
+may flip). In what follows we use the term without loss of
+generality (w.l.o.g.) to refer to such cases.
+
+It was proven that every congestion game in an exact potential game (Rosenthal 1973), since the following potential
+function always holds:
+ct (x)
+
+(5)
+
+achieves this objective.
+Consider an agent i ∈ I and two arbitrary strategies
+si , s0i ∈ Si . In order to prove that Equation 5 is an exact
+potential function one must show that
+
+where si [t] is 1 if the player consumes resource t when applying strategy si and 0 otherwise. dt denotes the congestion
+over resource
+t as can be deduced from s−i , and formally
+P
+dt = s∈s−i s[t].
+
+Φ(S) = −1 ·
+
+ct (x)
+
+x=1
+
+t∈T
+
+t∈T
+
+dt
+XX
+
++si [t]
+X dtX
+
+Case 1. si [t] = s0i [t]. This is the trivial case, since both sides
+of the equation are identically 0.
+
+(3)
+
+Case 2. w.l.o.g., si [t] = 1, s0i [t] = −1. Inserting these
+values into Equation 6 results in the expression:
+
+t∈T x=1
+
+Feedback Congestion Games (FCGs)
+Let us consider an extended definition of the classical congestion game (as described by Rosenthal). The extension is
+termed feedback congestion game (FCG) and is defined to
+be a game similar to the classical congestion game with the
+exception that the players play the role of both producer and
+consumer. This means that each player is able to produce
+some resources and consume other resources.
+A clear motivation for feedback congestion games is that
+they naturally model the GIV charging problem; an EV can
+choose to charge at one time-slot and to discharge at another.
+It can do so in order to reduce the total cost of its charging
+session and as a side effect it can also help balance the overall load.
+
+ct (dt + 1) + ct (dt ) =
+
+dX
+t +1
+
+ct (x) −
+
+x=1
+
+dX
+t −1
+
+ct (x)
+
+x=1
+
+This equality holds because it is an identity. It simply uses
+the elimination of similar elements from the right-hand side
+of the equation, resulting in its left-hand side.
+Case 3. w.l.o.g., si [t] = 0, s0i [t] = −1. Inserting these values into both sides of Equation 6 simplifies it to:
+ct (dt ) =
+
+dt
+X
+x=1
+
+ct (x) −
+
+dX
+t −1
+
+ct (x)
+
+x=1
+
+The equality holds with the same justification as in Case 2.
+
+1442
+
+Case 4. w.l.o.g., si [t] = 0, s0i [t] = 1. Inserting these values
+into both sides of Equation 6 simplifies it to:
+−ct (dt + 1) =
+
+dt
+X
+x=1
+
+ct (x) −
+
+dX
+t +1
+
+number of variables controlled by the agents. For a large
+number of agents, as is the case in the GIV charging problem, the explicit representation is impractical. First, it needs
+exponential space. Second, computing a best-response strategy requires accessing all the utility values at least once, and
+hence would take exponential time.
+While the above explicit representation yields exponential
+complexity, a property of real-life charging scenarios comes
+to our aid. Vehicle owners usually could not care less regarding some specific time-slots; rather, they want their EV to be
+charged within some time interval in which the vehicle is
+parked. This comprehension leads to a natural and remarkably compact representation.
+
+ct (x)
+
+x=1
+
+Again, the resulting equality is trivially true for the same
+reason as in the previous cases.
+The fact that Equation 6 holds proves that Equation 5 is
+indeed an exact potential function. This proves that every
+feedback congestion game is an exact potential game.
+
+4
+
+Modeling GIV Charging as FCG
+
+Scalability of Representation
+
+Modeling the GIV charging problem as an FCG is straightforward. Let < V, T, {lt }, {Sv } > be an instance of the GIV
+charging problem. Every vehicle v ∈ V can be represented
+as an agent i ∈ I. The set of resources T in the FCG is
+the set of time-slots. Finally, the set of available strategies
+{Si } represents the set of available GIV actions {Sv }. In order to support the initial background load one can add several “pseudo-agents”, each with a single strategy, so that together they will impose the congestion defined in {lt }t∈T .
+This modeling has several advantages:
+
+Each agent (GIV) i ∈ I in the GIV charging problem has
+a set of strategies that encode a valid combination of timeslots during which agent i is able to charge/discharge; these
+strategies coincide with the vehicles owner’s preferences.
+We assume that agent i is able to charge/discharge within
+a time interval (ai , di ), where ai represents the arrival time
+and di the departure time. The vehicle’s owner expects that
+during this time interval the GIV will charge qi energy units.
+This expectation enables to present the set of strategies Si of
+agent i as a tuple < ai , di , qi >. One may also notice that in
+the iterated best-response process an agent does not need to
+know the strategies chosen by other agents (i.e., s−i ) in order
+to calculate ui (si , s−i ), but only the congestion of time-slots
+in the interval (ai , di ). These properties make the size of the
+FCG representation size-scalable in the number of agents,
+which is an important property in this domain. Moreover,
+the proposed method for finding a PNE inherently preserves
+the privacy of agents’ preferences.
+
+1. Distributed iterated better-response playing is guaranteed
+to converge to a PNE.
+2. In order to compute its utility, an agent only needs to
+know the congestion over the time-slots. The agent does
+not need to know any additional information about any
+other agent. This results in a compact representation of
+the game and preservation of the privacy of agents.
+3. Since each turn in the better-response process improves
+the value of the potential function, one can execute this
+process as a distributed anytime hill-climbing algorithm.
+
+Finding Best Response
+
+Given the above transformation, one can design appropriate pricing schemes. Pricing schemes are designed to
+achieve global objectives which are inherent to issues of demand side management and the smart grid. Important examples are load balancing and peak reduction. The relevant
+pricing scheme for achieving load balancing is based on
+Shannon’s entropy (Shannon 1948). For achieving peak reduction, one can use a lexicographic-order pricing scheme.
+More details on these pricing schemes are excluded due to
+page limitation.
+
+5
+
+Running an iterated best (or better) response process requires numerous calculations of the best response for each
+agent. The naı̈ve search process for the best response iterates over all the strategies available for the agent, and selects
+the one that yields the maximal utility. Following the problem definition in Section 2, each agent i which is “active”
+in time interval (ai , di ) has at most 3ti strategies, where
+ti = di − ai . Iterating over all these strategies yields exponential run-time. For this setting, Algorithm 1 finds a bestresponse strategy in time O(ti · log(ti )), reducing the runtime of the best-response process.
+The algorithm receives as input the agents’ preferences
+and the current congestions d. The algorithm first sorts d
+with respect to the costs and then finds the first qi minimalcost time-slots to charge in. Next, the algorithm tries to find
+pairs of time-slots, such that charging in one and discharging
+in the other yields a profit. The agent has to verify that the
+battery is not already fully charged when charging, and that
+it has enough power in the battery when discharging.
+
+Representation and Runtime
+
+In formal formats for specifying a game (Neumann and Morgenstern 1944; Kuhn, Arrow, and Tucker 1953) utility functions are represented explicitly by listing the values for each
+agent and for each combination of actions. The number of
+utility values that must be specified (i.e., the number of possible combinations of actions) is exponential in the number
+of players. The actions available to the agents can be represented by a set of variables and their respective domains in
+an Asymmetric Distributed Constraints Optimization Problem (Grinshpoun et al. 2013). This makes the utility functions exponential both in the number of agents and in the
+
+Proposition 2. The run-time of Algorithm 1 is O(ti ·log(ti )).
+Proposition 3. Algorithm 1 finds a best-response strategy.
+The proofs are omitted due to page limitation.
+
+1443
+
+Algorithm 1 FindBestResponse (ai , di , qi , d)
+1: Let tcharge ⊆ T be the set of time-slots in (ai , di ) ordered with respect to the cost of (congestion + 1)
+2: Let tdischarge ⊆ T be the set of time-slots in (ai , di )
+ordered with respect to the congestion cost
+3: s ← 0T
+4: for min(qi , ti ) times do
+5:
+find time-slot t ∈ tcharge with lowest cost s.t. s[t] = 0
+6:
+s[t] ← 1
+7: while ∃t ∈ tcharge , t0 ∈ tdischarge s.t.
+c(d[t0 ]) > c(d[t] + 1) and s[t] = 0 and s[t0 ] = 0 do
+8:
+s[t] ← 1
+9:
+s[t0 ] ← −1
+10: return s
+
+6
+
+Congestion
+
+We present the results of 200 randomly generated problems,
+each with 500 agents and 200 time-slots. Figures 1, 2, and
+3 show the average congestion over the time-slots that resulted from solving the generated problems using the fixed
+pricing scheme, CG, and FCG, respectively. Presenting only
+the mean values is not particularly informative in this context, since random values tend to average nicely. Thus, the
+standard deviation is also shown.
+
+Experimental Evaluation
+
+250
+230
+210
+190
+170
+150
+130
+110
+90
+70
+50
+0
+
+20
+
+40
+
+60
+
+80
+
+100
+
+120
+
+140
+
+160
+
+180
+
+200
+
+Time-slot
+
+In the following evaluation we generated a random set of
+GIV charging problems. These problems were then translated to both congestion games (by ignoring strategies that
+include discharging) and feedback congestion games. We
+tested the effectiveness of the iterated best-response process
+for both CG and FCG, as well as for a fixed pricing scheme.
+For CG and FCG we used an entropy-based pricing scheme.
+
+Background load
+
+Fixed price load
+
+Figure 1: Congestion over time-slots – Background vs.
+Fixed pricing scheme
+Figure 1 clearly shows that the demand when using the
+fixed pricing scheme is highly unpredictable, in the sense
+that the variance between problem instances corresponds to
+the variance of the background load. This is not a desirable
+property for both the electricity company and the consumers.
+The electricity company needs to plan the power generation
+in advance, whereas the consumers benefit from predictable
+electricity costs. Note that the average over all experiments
+maintains the locations of the background load peaks.
+
+Problem Generation
+
+Congestion
+
+The problems used in this evaluation were randomly generated according to the following process. First, the number
+of agents V and time-slots T were given to each experiment as parameters. Next, a background power load was randomly selected for each time-slot from the range [0, |V |/2].
+Then, the EVs preferences were generated by randomly selecting the arrival and departure times (in the range [0, |T |]),
+as well as the amount of energy units that each EV needs to
+charge. This amount was defined by a natural number randomly selected from the range [0, 100]. All selections were
+made with uniform distribution. Note that since EVs preferences are intervals, in the extreme time-slots (at the beginning and at the end), the resulting demand is not uniform.
+Finally, the congestion game and corresponding feedback
+congestion game that represent the generated GIV charging
+problem were constructed according to the transformation
+described in Section 4.
+
+230
+210
+190
+170
+150
+130
+110
+90
+70
+50
+0
+
+20
+
+40
+
+60
+
+80
+
+100
+
+120
+
+140
+
+160
+
+180
+
+200
+
+Time-slot
+Background load
+
+CG load
+
+Figure 2: Congestion over time-slots – Background vs. CG
+
+Solution Quality
+
+The CG results in Figure 2 show some improvement in
+their predictability (e.g., lower variance). Nevertheless, even
+in the average case CG was not able to flatten the demand,
+as the background load peaks still appear to some extent.
+Considerable improvement is achieved when using FCG,
+as can be clearly seen in Figure 3. In the time-slots that have
+high GIV availability (roughly between time-slots 70 and
+170), the average demand is virtually flattened. Moreover,
+the demand in this region is highly predictable, demonstrating a small variance.
+
+The first experiment is designed to test the quality of the solutions achieved by using iterated best-response for both the
+congestion and feedback congestion games that correspond
+to the generated GIV charging problems. We also included
+in the experiment the results of a fixed pricing scheme in
+which the price for each time-slot is the same and it is not
+affected by the congestion over the time-slot; this pricing
+scheme corresponds to the naı̈ve approach in which each
+GIV starts charging at the moment it is connected to the grid.
+The motivation for this experiment stems from the fact
+that CG/FCG may include many different PNEs; while an
+iterated best-response process is guaranteed to find one of
+them, the quality of the found PNE may be far from optimal.
+
+Load Balancing
+The second experiment is designed to measure the effect that
+the amount of consumers has on the resulting demand. The
+
+1444
+
+Congestion
+
+agents use congested time-slots, therefore lowering their
+costs may lead to faster convergence.
+Figure 5 presents the number of rounds until convergence
+for CG and FCG when using each of the two player orderings (same settings).
+
+230
+210
+190
+170
+150
+130
+110
+90
+70
+50
+
+6
+0
+
+20
+
+40
+
+60
+
+80
+
+100
+
+120
+
+140
+
+160
+
+180
+
+200
+
+5
+
+Background load
+
+Rounds
+
+Time-slot
+FCG load
+
+3
+
+Figure 3: Congestion over time-slots – Background vs. FCG
+
+2
+
+Average standard deviation
+
+objective is to achieve a balanced load among the time-slots,
+thus we measure the standard deviation of the resulting congestion over all the time-slots.
+For this experiment we considered problems of different
+sizes, in which the number of consumers is taken from the
+set {100, 200, . . . , 1000}. The number of time-slots remains
+fixed (200) for all problems. For each problem size we generated 200 random instances. The values presented in Figure 4 are the averages for each problem size of the resulting
+standard deviations.
+
+100
+
+200
+
+300
+
+400
+
+500
+
+600
+
+700
+
+800
+
+900
+
+CG
+
+300
+
+400
+
+500
+
+Expensive first (CG)
+Expensive first (FCG)
+
+600
+
+700
+
+800
+
+900
+
+1000
+
+Round-robin (CG)
+Round-robin (FCG)
+
+Figure 5: Rounds until convergence
+For the “Round-robin” ordering CG is shown to converge
+faster than FCG. This result is not surprising since in FCG
+each player has more strategies, which leads to a larger solution space. As expected, the “Expensive first” ordering resulted in considerably faster convergence for FCG.
+From the graph it is clear that the proposed solution scales
+well, although one must keep in mind that as the problem
+size grows, so does the number of turns in each round.
+In most cases the different orderings converged to the
+same PNE. On the rare occasions that they converged to different PNEs, the changes in solution quality were marginal.
+
+7
+
+1000
+
+Number of consumers
+Fixed
+
+200
+
+Number of consumers
+
+160
+140
+120
+100
+80
+60
+40
+20
+0
+100
+
+4
+
+Conclusions
+
+The problem of V2G-enabled EV charging and discharging is modeled as a congestion game. In order to incorporate the discharge operation, a generalized model of congestion games is proposed. The resulting feedback congestion
+games (FCGs) were proven to be exact potential games, as
+is the case with standard congestion games. Being a potential game, FCGs converge to a PNE by an iterated betterresponse process. This property along with an extremely
+compact representation that is presented, enable efficient
+better-response search for a PNE.
+An extensive experimental evaluation demonstrates that
+the proposed model and its compact representation yield a
+highly effective and scalable process. The experiments also
+revealed that enabling the discharging operation (by using
+FCGs) results in considerably better outcomes in terms of
+their predictability as well as in the balance of loads that are
+imposed on the different time-slots.
+In the present work, the best-response process is completely sequential. In future work it would be interesting
+to devise an algorithm in which all the agents act concurrently. Another interesting direction is to adjust the proposed
+scheme in order to enable an online mechanism, in which
+agents can come and go at any time (Gerding et al. 2011;
+Robu et al. 2011; Stein et al. 2012). Finally, the V2Gcharging/discharging domain is an interesting playground
+for semi-cooperative agents, which may lead to more effective schemes.
+
+FCG
+
+Figure 4: Load balancing between time-slots
+It is clear that the results of the fixed pricing scheme are
+not affected by the number of consumers. This is expected,
+since the fixed pricing scheme basically amplifies the background load. In Contrast, when the number of consumers
+increases, both CG and FCG are able to produce much more
+balanced solutions. The ability of FCG to utilize V2G enables it to achieve considerably more balanced solutions
+than those achieved by CG.
+
+Scalability and Player Ordering
+To verify the scalability of the proposed solution we examine the number of turns until the players converge to a PNE.
+In each turn exactly one player is allowed to change its strategy or remain with its former strategy. For a problem with
+n consumers, the process is considered converged after n
+consecutive turns with no strategy changes.
+Different player orderings may potentially affect the number of turns until convergence. The basic ordering, which
+was also used in the preceding experiments, is “Roundrobin”, in which the same (random) ordering is used in each
+round. Another player ordering that we consider is “Expensive first”, in which the order changes each round according to the agents’ costs in the previous round. “Expensive”
+
+1445
+
+Acknowledgments
+
+Neumann, J. V., and Morgenstern, O. 1944. Theory of games
+and economic behavior. Princeton University Press.
+Robu, V.; Stein, S.; Gerding, E. H.; Parkes, D. C.; Rogers,
+A.; and Jennings, N. R. 2011. An online mechanism for
+multi-speed electric vehicle charging. In AMMA, 100–112.
+Rosenthal, R. W. 1973. A class of games possessing purestrategy nash equilibria. International Journal of Game Theory 2(1):65–67.
+Shannon, C. E. 1948. A mathematical theory of communication. The Bell System Technical Journal 27:379–423,
+623–656.
+Sovacool, B. K., and Hirsh, R. F. 2009. Beyond batteries:
+An examination of the benefits and barriers to plug-in hybrid electric vehicles (PHEVs) and a vehicle-to-grid (V2G)
+transition. Energy Policy 37(3):1095–1103.
+Stein, S.; Gerding, E.; Robu, V.; and Jennings, N. R. 2012.
+A model-based online mechanism with pre-commitment and
+its application to electric vehicle charging. In AAMAS, 669–
+676.
+Vandael, S.; Boucké, N.; Holvoet, T.; De Craemer, K.; and
+Deconinck, G. 2011. Decentralized coordination of plug-in
+hybrid vehicles for imbalance reduction in a smart grid. In
+AAMAS, 803–810.
+Voice, T.; Vytelingum, P.; Ramchurn, S. D.; Rogers, A.;
+and Jennings, N. R. 2011. Decentralised control of microstorage in the smart grid. In AAAI, 1421–1427.
+Vytelingum, P.; Voice, T. D.; Ramchurn, S. D.; Rogers, A.;
+and Jennings, N. R. 2010. Agent-based micro-storage management for the smart grid. In AAMAS, 39–46.
+Wu, C.; Mohsenian-Rad, H.; and Huang, J. 2012. Vehicleto-aggregator interaction game. Smart Grid, IEEE Transactions on 3(1):434–442.
+
+The paper is in the frame of the project: Diffusion of Mass EMobility and Integrating Renewable Energy in Smart Grids
+and Cities: Intelligent Agents for Efficient Energy Consumption, funded by the Israeli Ministry of Energy and Water. The
+research was partially supported by the Lynn and William
+Frankel Center for Computer Science at Ben-Gurion University.
+
+References
+Chapman, A.; Rogers, A.; and Jennings, N. R. 2008. A
+parameterisation of algorithms for distributed constraint optimisation via potential games. In DCR workshop, 99–113.
+Gerding, E. H.; Robu, V.; Stein, S.; Parkes, D. C.; Rogers,
+A.; and Jennings, N. R. 2011. Online mechanism design for
+electric vehicle charging. In AAMAS, 811–818.
+Grinshpoun, T.; Grubshtein, A.; Zivan, R.; Netzer, A.; and
+Meisels, A. 2013. Asymmetric distributed constraint optimization problems. J. Artif. Intell. Res. (JAIR) 47:613–647.
+Ibars, C.; Navarro, M.; and Giupponi, L. 2010. Distributed
+demand management in smart grid with a congestion game.
+In SmartGridComm, 495–500.
+Kamboj, S.; Pearre, N.; Kempton, W.; Decker, K.; Trnka,
+K.; and Kern, C. 2010. Exploring the formation of electric
+vehicle coalitions for vehicle-to-grid power regulation. In
+ATES workshop.
+Kemp, R.; Blythe, P.; Brace, C.; James, P.; Parry-Jones, R.;
+Thielens, D.; Thomas, M.; Wenham, R.; and Urry, J. 2010.
+Electric vehicles: charged with potential. Royal Academy
+of Engineering.
+Kempton, W., and Letendre, S. E. 1997. Electric vehicles
+as a new power source for electric utilities. Transportation
+Research Part D: Transport and Environment 2(3):157–175.
+Kempton, W., and Tomić, J. 2005a. Vehicle-to-grid power
+fundamentals: calculating capacity and net revenue. Journal
+of Power Sources 144(1):268–279.
+Kempton, W., and Tomić, J. 2005b. Vehicle-to-grid power
+implementation: From stabilizing the grid to supporting
+large-scale renewable energy. Journal of Power Sources
+144(1):280–294.
+Kuhn, H.; Arrow, K.; and Tucker, A. 1953. Contributions to
+the theory of games. Number v. 2 in Annals of mathematics
+studies. Princeton University Press.
+Levit, V.; Grinshpoun, T.; and Meisels, A. 2013. Boolean
+games for charging electric vehicles. In IAT, volume 2, 86–
+93.
+Liu, M.; Ahmad, S. H. A.; and Wu, Y. 2009. Congestion games with resource reuse and applications in spectrum
+sharing. In GameNets, 171–179.
+Mitchell, W. J.; Borroni-Bird, C. E.; and Burns, L. D. 2010.
+Reinventing the automobile: Personal urban mobility for the
+21st century. MIT Press.
+Monderer, D., and Shapley, L. S. 1996. Potential games.
+Games and economic behavior 14(1):124–143.
+
+1446
+
+

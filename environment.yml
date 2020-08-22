@@ -1,4 +1,4 @@
-name: prjak
+name: nli-env
 channels:
   - defaults
 dependencies:

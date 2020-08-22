@@ -1,0 +1,1176 @@
+Proceedings of the Twenty-Ninth AAAI Conference on Artificial Intelligence
+
+A Stackelberg Game Approach for Incentivizing Participation
+in Online Educational Forums with Heterogeneous Student Population
+Rohith D. Vallam and Priyanka Bhatt and Debmalya Mandal and Y. Narahari
+Department of Computer Science and Automation,
+Indian Institute of Science, Bengaluru, 560012, India
+{rohithdv, priyanka.bhatt, hari}@csa.iisc.ernet.in, debmalya.mandal@gmail.com
+
+Abstract
+
+OEF Details
+
+Increased interest in web-based education has spurred the proliferation of online learning environments. However, these
+platforms suffer from high dropout rates due to lack of sustained motivation among the students taking the course. In an
+effort to address this problem, we propose an incentive-based,
+instructor-driven approach to orchestrate the interactions in
+online educational forums (OEFs). Our approach takes into
+account the heterogeneity in skills among the students as well
+as the limited budget available to the instructor. We first analytically model OEFs in a non-strategic setting using ideas
+from lumpable continuous time Markov chains and compute
+expected aggregate transient net-rewards for the instructor and
+the students. We next consider a strategic setting where we
+use the rewards computed above to set up a mixed-integer linear program which views an OEF as a single-leader-multiplefollowers Stackelberg game and recommends an optimal plan
+to the instructor for maximizing student participation. Our
+experimental results reveal several interesting phenomena including a striking non-monotonicity in the level of participation of students vis-a-vis the instructor’s arrival rate.
+
+Course
+
+Class
+
+Term
+
+Strength
+
+Forum
+(Piazza)
+Duration
+
+2012
+
+72
+
+2014
+
+38
+
+Jan 21
+to
+May 1
+Mar 1
+to
+May 1
+
+Figure 1: Impact of incentives on participation of students in
+OEFs recorded in a real-world experiment.
+Mazzolini and Maddison 2003). The objective of our work
+is to propose an instructor-driven approach to orchestrate the
+activities of OEFs by designing optimal incentives to enhance student-instructor participation in these OEFs.
+Incentive design plays an important role in encouraging
+participation among students in these educational forums.
+As part of a case study, we analysed the data collected from
+two online educational forums which were part of the Game
+Theory (E1 254) in the Department of Computer Science
+and Automation, Indian Institute of Science, for two different
+terms. The primary difference between these two terms was
+that there were no incentives offered to students participating
+in the Spring 2012 term while in the Spring 2014 term, students were offered incentives (a certain percentage of marks
+based on the reward points accumulated by the student) to
+participate actively to open-ended (or discussion type) questions posted on the Piazza forum associated with the course.
+We observed an increased participation of students in the
+incentive-based course than when there were no incentives
+offered (See Figure 1) which is an indication of importance
+of appropriate incentives in driving up the participation levels in the course.
+Modelling incentives for improving the participation levels has also recently been studied by (Ghosh and Kleinberg
+2013) where they formulate an incentive-based approach to
+modulate the activities of the online educational forums and
+recommend optimal behaviour for the instructor needed to
+drive up the participation from the student population. We
+pursue this direction further and non-trivially extend their
+instructor-driven approach to a more realistic setting of heterogeneous students and a budget-limited instructor. On-
+
+Introduction
+With the explosive growth of the Internet, the area of
+education has undergone a massive transformation in
+terms of how students and instructors interact in a classroom. Online learning environments now constitute a very
+important part of any academic course. Further, online education has attracted the interest of the research community
+due to the immense popularity of the massive open online
+courses (MOOCs) offered by platforms like Coursera, edX,
+Udacity, etc. As of January 17, 2014, Coursera students
+voiced themselves in 590,000 discussion threads in the education forums for a total of 343,014,912 minutes of learning across 571 courses (Coursera 2014). However, empirical studies have repeatedly shown that the dropout rates in
+the online courses are very high (Fowler 2013) mainly due
+to a lack of sustained motivation among the enrolled students. An important, but often under-utilized component of
+an online classroom is the online educational forum (OEF)
+where students and instructors discuss various administrative and technical aspects of the course (Andresen 2009;
+Copyright c 2015, Association for the Advancement of Artificial
+Intelligence (www.aaai.org). All rights reserved.
+
+1043
+
+line learning environments attract participation from students with heterogeneous skill levels and it is our belief that
+any approach to improve levels in participation should account for this heterogeneity which is not considered by existing models. We incentivize students on a per question basis to keep up the momentum of participation in the class.
+Students are provided suitable incentives to post answers to
+the specific open-ended/discussion-style questions that are
+posted on the forum by the instructor. These incentives
+maybe in the form of some book vouchers, food coupons or
+some extra grade points, as considered appropriate by the
+instructor. The instructor is limited by a budget and has to
+make judicious use of them such that it results in higher participation levels from different types of students.
+
+1: Instructor chooses an arrival rate to the forum and announces this to the class.
+2: Students (of different types) observe the instructor announcement and decide their
+corresponding rate of arrival.
+3: Instructor and the student record the next arrival time based on their corresponding
+chosen arrival rates.
+4: while Course has not ended do
+5:
+if you are the instructor then
+6:
+if there is time available for next arrival then
+7:
+Engage in other activities not related to the forum.
+8:
+else
+9:
+Close current (open-ended) question on the forum.
+10:
+Reward points to students who have answered this question.
+11:
+Post the next discussion-style question.
+12:
+Record the next time for arrival to the forum.
+13:
+end if
+14:
+end if
+15:
+if you are a student then
+16:
+if there is time available for next arrival then
+17:
+Engage in any other activities not related to the forum.
+18:
+else
+19:
+Post a valid answer to the current open question in the OEF.
+20:
+Record the next time for arrival to the forum.
+21:
+end if
+22:
+end if
+23: end while
+
+Contributions and Outline
+Our work requires us to first define an interaction model in
+an OEF which reasonably captures the activities of the students and instructor. Once this is addressed, there is a need to
+understand transient behaviour of the instructor and students
+in the time-limited online course. One of the complexities is
+to handle the ‘continuous’ nature of arrivals of the instructor
+and students to the OEF. Taking into consideration these factors, we model the OEF as a continuous-time Markov chain
+(CTMC). A CTMC is a natural candidate to describe the interaction model as it enables us to record the activities of
+all the students and instructor in a simple and elegant manner by appropriately modelling the state space of the CTMC.
+Further, it allows the state transitions to happen at any epoch
+of time. Using techniques from lumpability of CTMCs, we
+compute the transient behaviour of the instructor and the students in the modelled OEF.
+Next, we use these computations in a more realistic gametheoretic setting where we adopt a Stackelberg game approach to model the interactions of the OEF. Stackelberg
+game models (for example: (An et al. 2011)) have been
+the natural approaches in many well-known practical applications primarily in the context of security (for example:
+for deploying surveillance resources (Jain et al. 2010) by
+the Los Angeles International Airport (LAX) police) and
+more recently, in traffic patrolling for the Singapore road
+network (Brown et al. 2014). We believe that our problem,
+though it is set in a different domain of education, fits naturally into a Stackelberg framework where the players of
+the game compete on a resource ( i.e., participation time on
+the OEF) and the welfare maximizing leader (i.e., instructor) is in a position to exploit the first-mover advantage to
+trigger increased participation from the followers (i.e., student population) by designing suitable incentive schemes.
+Further, our detailed experiments with the proposed Stackelberg model demonstrate that our approach validates several empirically/theoretically observed phenomena and also,
+offers utility-maximizing recommendations to the instructor
+as well as the different types of students on several important
+parameters (like arrival rate, instructor bias) of the model.
+In the rest of the paper, due to space constraints, we sometimes omit providing details in the interest of clarity. These
+omitted details are given in (Vallam et al. 2014).
+
+Figure 2: An instructor-driven interaction model in an OEF
+
+Problem Setting
+We consider n students and an instructor participating in an
+hybrid or online classroom which has an associated discussion forum (termed in this paper as online educational forum (OEF)). In the rest of the paper, we focus on modelling
+the instructor-student interactions on the OEF. To achieve the
+right focus, we do not consider any other aspect of the online
+classroom like lectures, written assignments, exams, etc. We
+assume that the arrivals of the n students and the instructor
+to the OEF are independent Poisson processes with rate λi
+for student i (∀i ∈ {1, . . . , n}) and rate µ for the instructor.
+We begin by proposing an instructor-driven approach to
+structure the activities in the OEFs (see Figure 2). Henceforth, we will assume the activities of the OEF follows as
+outlined in Figure 2. We capture the heterogeneity among
+students by allowing L types of students in our OEF. Let Al
+be the set of all students of type l (∀l ∈ {1, . . . , L}). Also,
+let nl be the number of students of type l. On arrival to the
+forum, a student of type l answers the currently open question (if any) and hence, incurs a cost (αl ). We assume that
+the cost of answering a question will be same for all students
+of a given type. The instructor has a budget B per question
+and has to decide a suitable allocation of the budget among
+the different students belonging to the L types. Let ml denote the maximum number of answers
+P per question that can
+be given to Al students i.e., B = 1≤l≤L ml .
+
+A CTMC Model for OEFs
+We now model the activities of the OEF (as described in Figure 2) as a CTMC X(t) = (S, Q), where S is the set of states
+of the stochastic process X(t) and Q is the generator matrix.
+We define each state x ∈ S as: x = (x1 , . . . , xn ), where
+xi corresponds to the number of answers received from the
+ith student for the current question. If X(t) is in state
+x : (x1 , .., xi , .., xn ) and student i gives an answer on the forum then X(t) transitions to state y : (x1 , .., xi + 1, .., xn ).
+When the instructor arrives at the forum, the current question
+
+1044
+
+is closed and a new question is started, thus transitioning to
+state (0, . . . , 0). At any point of time, there is a single active question on the OEF as given in Figure 2. We assume
+the course is of finite duration (T ) and the instructor and the
+students are arriving to the forum at finite rates. This allows
+us to obtain a reasonably large upper bound M on the number of answers that a student can post on the forum for each
+question transforming our infinite state CTMC to a finite state
+CTMC where the ‘last’ state will be (M, .., M ). Figure 3(a)
+illustrates the CTMC for two students. Thus, the generator
+matrix of the
+CTMC can be defined as below.
+
+
+λj
+
+
+
+
+
+
+µ
+Q(x, y) =
+
+
+ω
+
+
+
+
+0
+
+if
+
+P
+
+|xi − yi | = 1 and ∃j : yj − xj = 1
+
+i
+
+if y = (0, . . . , 0) 6= x
+if x = y
+
+otherwise
+X
+where x, y ∈ S, and ω =
+
+Figure 3: (a) Light-gray and dark-gray regions depict two
+partitions that can be defined on the CTMC. Each light-gray
+region contains states where the number of arrivals of student 1 is the same. Each dark-gray region contains the states
+where the number of arrivals of student 2 is the same. (b)
+Lumped-Student1 CTMC: Each light-gray state indicates the
+aggregation of all states in the Figure 3(a) which are enclosed
+by light-gray region. For example, state 1 denotes the set
+of states {(1, 0), (1, 1), . . . , (1, M )} from Figure 3(a). (c)
+Lumped-Student2 CTMC: Each dark-gray state indicates the
+aggregation of all the states in the Figure 3(a) which are enclosed by dark-gray region. For example, state 2 denotes the
+set of states {(0, 2), (1, 2), . . . , (M, 2)} from Figure 3(a). (d)
+This is the legend for all the diagrams.
+
+0
+
+−Q(x, y )
+
+y 0 ∈S\{x}
+
+Lumpability of the OEF CTMC
+An important point to note is that the rewards and costs incurred for each student in a particular state are independent
+of the other students and dependent only on their own arrival
+rates and the instructor’s arrival rate. This is possible because only open-ended questions are being posted by the instructor and thus, even if an open-ended question has already
+been answered by a few students, still a new student can find
+it beneficial to give a new answer and potentially earn a good
+reward. Hence, instead of analyzing the CTMC, which keeps
+track of arrivals of all students (of all types), we show that
+we can analyze n independent student-specific CTMCs (with
+M +1 states each) so that each of the student-specific CTMC
+keeps track of arrivals from only that particular student. This
+is possible by applying the lumping process on the original
+CTMC which we describe next.
+We first define a partition S i on the state space S of
+a
+X(t) w.r.t. a student i in the OEF as S i = {S i |a ∈
+a
+{0, 1, . . . , M }} where each block S i of the partition S i is
+a
+defined as S i = {(xi , x−i ) ∈ S|xi = a}. Figure 3 depicts the lumping process in more detail through an example.
+We now state and prove a result about the lumpability of the
+proposed CTMC into smaller, student-specific CTMCs. For
+ease of notation, note that all the notations with an overline
+refer quantities corresponding to the lumped CTMC.
+
+Proof. (Sketch) (i) X(t) is lumpable w.r.t S i if for any two blocks
+a
+b
+a
+b
+b
+S i , S i ∈ S i and for every v, y ∈ S i we have q(v, S i ) = q(y, S i )
+a
+b
+i.e. the rate of transition from each
+state in block S i to block S i
+a
+should be equal. By definition, S i = {(xi , x−i ) ∈ S|xi = a} and
+b
+a
+S i = {(xi , x−i ) ∈ S|xi = b}. Now states v, y ∈ S i , hence these
+maybe represented as: v = (a, v−i ) and y = (a, y−i ) respectively.
+b
+Also we represent a state z ∈ S i as: z = (b, z−i ). Let D =
+{0, 1, . . . , M } and S−i = {(x−i )|(xi , x−i ) ∈ S}. Now we need
+a
+b
+a
+to prove that ∀S i , S i ∈ S i and for any v, y ∈ S i ,
+b
+
+b
+
+q(v, S i ) = q(y, S i )
+
+⇒
+
+X
+
+Q(v, z) =
+
+z∈S b
+i
+
+X
+
+⇒
+|
+
+Q(y, z)
+
+z∈S b
+i
+
+X
+
+Q((a, v−i ), (b, z−i )) =
+
+Q((a, y−i ), (b, z−i ))
+
+z−i ∈S−i
+
+z−i ∈S−i
+
+Theorem 1. (i) X(t) = (S, Q) is lumpable w.r.t. partition S i =
+
+X
+
+{z
+
+}
+
+LHS
+
+|
+
+{z
+
+RHS
+
+a
+
+{S i |a ∈ {0, 1, . . . , M }}.
+(ii) The quotient (lumped) Markov chain X i (t) = (S i , Qi )
+that we get on lumping the CTMC X(t) w.r.t. partition S i (i ∈
+{1, 2, . . . , n}) is given as :
+
+
+λi
+
+
+
+
+µ
+a
+b
+Qi (S i , S i ) =
+
+ω
+
+
+
+
+0
+
+b = 0 6= a,
+
+LHS = −
+
+b = a,
+o/w.
+
+X
+
+X
+
+Q((a, v−i ), (zi , z−i ))
+
+(zi ∈D\{a}) (z−i ∈S−i )
+
+X
+
+a
+
+(1)
+
+• Case (1) b =
+6 a
+• Case (1a) b = a + 1. It can be shown that LHS = λi = RHS.
+• Again, it can be shown LHS = RHS = 0 for scenarios:
+Case (1b) b > a + 1, Case (1c) b < a, b =
+6 0
+• Case (1d) b = 0, b 6= a. It can be shown that LHS = µ = RHS.
+• Case (2) b = a. Using this and simplifying Equation (1), we get
+
+b = a + 1,
+
+where, ω = −
+
+}
+
+RHS = −
+
+c
+
+Qi (S i , S i ), D = {0, 1, . . . , M }.
+
+X
+
+X
+
+(zi ∈D\{a}) (z−i ∈S−i )
+
+c∈D\{a}
+
+1045
+
+Q((a, y−i ), (zi , z−i ))
+
+h(µ) is an increasing function of µ. A reasonable assumption would be h(µ) = log µ. The reward rl,i (x) received
+by a student i of Al when the instructor visits the forum and
+finds X i (t) (the lumped CTMC corresponding to student i)
+in a state x is defined as:
+(
+
+Now, from Case (1) we have, ∀c 6= a,
+X
+
+Q((a, v−i ), (c, z−i )) =
+
+z−i ∈S−i
+
+Q((a, y−i ), (c, z−i )),
+
+z−i ∈S−i
+
+X
+
+⇒
+
+X
+
+X
+
+Q((a, v−i ), (zi , z−i )) =
+
+(zi ∈D\{a}) z−i ∈S−i
+
+X
+
+Q((a, y−i ), (zi , z−i )). ∴ LHS = RHS
+
+X
+
+rl,i (x) =
+
+(zi ∈D\{a}) z−i ∈S−i
+
+i
+
+b
+
+a
+
+S i , S i ∈ S i , where x ∈ S i . These quantities have been computed
+in Cases (1) and (2) above.
+
+I
+
+Let us define RT as the total aggregate reward over time T
+that the instructor receives from all the n lumped-CTMCs
+X i (t) i ∈ {1, 2, . . . , n}. The instructor values each answer
+on the forum arriving from all students but can unequally
+value the contributions from different students. We use ci to
+give the bias
+the instructor towards answers from student
+Pof
+n
+i such that i=1 ci = 1 and 0 ≤ ci ≤ 1 ∀i ∈ {1, . . . , n}.
+As all students belonging to the same type are assumed to
+be similar, so the instructor will value their arrivals equally
+ci = cj (= cl ) ∀i, j ∈ Al . So, we get the total net-reward
+received by the instructor from the arrival of all the students
+P
+I
+I,i
+on the OEF i.e., RT =
+1≤i≤n ci RT . We now provide
+results which connect important computational quantities in
+the original and the lumped CTMCs.
+P
+Lemma 2. (a) π ti (x) = x∈S x π t (x)
+
+M
+X
+dπ ti (0)
+dπ ti (M )
+t
+t
+t
+t
+= −λi π i (0)+
+= −µπ i (M )+λi π i (M −1)
+µπ i (y);
+dt
+dt
+y=1
+
+dπ ti (x)
+t
+t
+= −(λi + µ)π i (x) + λi π i (x − 1), ∀x : 0 < x < M
+dt
+The initial state distribution π 0i for the CTMC X i (t) is
+0
+π i (0) = 1 and π 0i (x) = 0∀x ∈ S i \ {0} as, initially, no
+
+answer would be posted by any student. The proof of the
+following result uses the principle of mathematical induction
+and due to space constraints, we only state the result here and
+provide the details in (Vallam et al. 2014).
+Lemma 1. Given the initial distribution π 0i for X i (t) as π 0i (0) =
+
+1 and π 0i (x) = 0 ∀x ∈ {1, 2, . . . , M }. The solution to the above
+differential equations is given by:
+
+i
+
+λi −Ki t
+µ
++
+e
+=
+Ki
+Ki
+
+
+
+x
+x−1
+y
+X
+λi
+µ
+λx
+λi x+1 tx
+t
+it µ
+
+ e−Ki t
+π i (x) = −
+−
++
+x−y+1
+Ki
+Ki
+x!Ki
+y=1 y!Ki
+
+
+λi x µ
++
+∀x : 0 < x < M
+Ki
+Ki
+
+Proof. (Sketch) (a) The CTMC X(t) being considered has a finite
+state space S and the arrival rates of the students and the instructor
+on the CTMC are already known. Due to finiteness, we can assume
+there exists a finite number qb < ∞ which bounds the rate entries
+in the rate matrices Q and Qi (∀i ∈ {1, 2, . . . , n}). The initial
+state distributions π 0 and π 0i for the CTMCs X(t) and X i (t) respectively are defined as π 0 (0, 0, . . . , 0) = 1, π 0 (y) = 0∀y ∈
+S \ {(0, 0, . . . , 0)}, π 0i (0) = 1, and π 0i (x) = 0∀x ∈ S i \ {0}.
+P
+Note that π 0i (x) = y∈x π 0 (y)∀x ∈ S i . We thus have
+
+t
+π i (0)
+
+t
+
+M
+−1
+X
+
+(2)
+
+is the transient probability being in state x at time t. Let rI,i
+denote the reward accrued to the instructor due to answers
+posted from student i. If the instructor arrives on the forum
+when X i (t) is in state x, the reward she receives will be given
+by: rI,i (x) = xδ log µ . Let cost per arrival of the instructor be
+denoted by β. Then the net-reward to the instructor will be:
+I,i
+R (x) = rI,i (x) − β. The expected transient net-reward
+to the instructor if she arrives on the forum at time t, due
+to arrival of student i of Al using the lumped-CTMC
+X i (t)
+
+P
+I,i
+I,i
+t
+will thus be given by Rt = x∈S i R (x) π i (x). The
+expected transient aggregate net-rewards over time T for the
+student i of Al and the instructor w.r.t. the CTMC X i (t) will
+RT
+RT
+l,i
+l,i
+I,i
+I,i
+be RT = t=0 Rt dt and RT = t=0 Rt dt. respectively.
+
+We now have n lumped-CTMCs X i (t) = (S i , Qi ), 1 ≤
+i ≤ n (See Figure 3(b) and Figure 3(c)) with finite state space
+x
+S i = {x|x ∈ {0, 1, . . . , M }}. Each block S i ∈ S i has
+been represented as a state x of the lumped-CTMC X i (t)
+i.e. a state x of the lumped-CTMC X i (t) is representative of
+x
+the block S i which contains all the states in S in which the
+student i arrives x number of times. Each state x ∈ S i thus
+simply means how many answers have been received from
+a
+student i. For notational ease, we sometimes denote S i as a.
+t
+Also, let π i denote the transient state probability vector for
+the lumped CTMC X i (t). Transient state probability π ti (x)
+is the probability of X i (t) being in the state x at a time instant
+t. We need to solve the following differential equations for
+the transient probability vectors of X i (t):
+
+π i (M ) = 1 −
+
+if x ≤ ml ,
+o/w.
+
+The net-reward to a student i of Al in a state x will be
+l,i
+R (x) = rl,i (x) − αl x. The expected net-reward at time t
+X i (t) will thus
+to student i of Al using the lumped-CTMC
+ l,i 
+P
+l,i
+t
+be given by Rt = x∈S i R (x) π i (x) where π ti (x)
+
+(ii) The generator matrix for the lumped CTMC X i (t) = (S i , Qi )
+P
+a
+b
+b
+can be got by Qi (S i , S i ) = q(x, S i ) = z∈S b Q(x, z) for any
+a
+
+xδ log µ
+ml δ log µ
+
+t
+
+π i (x), where Ki = (λi + µ)
+
+x=0
+
+An additional factor which determines the quantity of rewards being given is that if the instructor may like to discount
+reward per answer if she is coming too often to the forum. So,
+we introduce δ ∈ (0, 1) as the willingness of the instructor
+to reward the students and δ h(µ) gives the discounting factor applied by the instructor for rewardable answer, where
+
+t
+
+π i (x) =
+
+∞
+X
+k=0
+
+e
+
+−qt
+b
+
+(b
+q t)k k
+π i (x)
+k!
+
+=
+
+∞
+X
+k=0
+
+e
+
+−qt
+b
+
+(b
+q t)k X k
+π (y)
+k!
+x
+y∈S i
+
+∞
+X
+
+X t
+q t)k k
+−qt
+b (b
+e
+π (y) =
+π (y)
+k!
+x k=0
+x
+
+X
+
+y∈S i
+
+1046
+
+=
+
+y∈S i
+
+Proposition 1. Students i, j belonging to the same type Al receive
+equal transient aggregate utility if they choose the same policy i.e.
+if ψ i = ψ j (= ψ l ) for students i, j ∈ Al then UTl,i = UTl,j .
+
+The above results follow from invoking results from lumpability of
+CTMCs (Sumita and Rieders 1989; Buchholz 1994). Please refer
+to (Vallam et al. 2014) for detailed explanation of the results.
+P
+l,i
+I,i
+Lemma 3. (a) Rtl,i = Rt (b) RtI = 1≤i≤n ci Rt
+
+We now formulate the optimization problem for student i
+of Al when the instructor has fixed a strategy φ.
+
+Theorem 2. The expected transient aggregate net-rewards over
+
+time T received by the students and the instructor is the same when
+calculated using the original CTMC X(t) or the n lumped CTMCs
+X i (t) i ∈ {1, 2, . . . , n}. i.e.,
+l,i
+I
+(a) RTl,i = RT
+(b) RTI = RT .
+
+ψ
+
+i∗
+
+v X
+w
+X
+
+= arg max
+ψi
+
+Da,b φa ψb , s.t. ψ
+T ,l,i
+
+i
+
+i
+
+st
+
+∈ Ω(G )
+
+a=1 b=1
+
+Note that ψ i∗ is the optimal rate of arrival of student i of
+Al in response to instructor strategy φ. We note that students belonging to the same type can have different optimal strategies in response to the same instructor strategy as
+the optimization problem can have multiple solutions. Due
+to symmetry (with respect to cost αl ) among students belonging to the same type, we assume that students belonging
+to the same type will choose the same optimal strategy i.e.
+ψ i∗ = ψ j∗ = ψ l∗ ∀i, j ∈ Al . Hence, instead of solving the
+student optimization problem for each student i, j belonging
+to a particular type Al , we can just solve the student optimization problem for a single representative Al student (now represented as l) and her optimal policy ψ l∗ would be followed
+by each student i of Al . Thus the optimization problem to be
+solved by each representative student l (1 ≤ l ≤ L) will be :
+
+OEF as a Stackelberg Game
+
+We consider a strategic setting where the instructor’s goal
+is to maximize students’ participation in the OEF which results in a better understanding of the subject for the students.
+The students typically will have commitments towards other
+courses and hence, their objective will be to maximize the
+rewards they get from answering questions in the OEF while
+minimizing their cost. We model the strategic interactions
+in an OEF as a Stackelberg game where the players are n
+students enrolled for the course and the instructor offering
+the online course. The instructor acts as a leader who decides her strategy (rate of arrival) first and the students are
+the followers who, after observing the instructor’s strategy,
+will finalize their own strategies (rates of arrival) in order
+to maximize their utilities. We assume the strategy space of
+the players is finite. The key idea behind the formulation of
+the Stackelberg game is to link the expected net-rewards of
+the CTMC (when the strategies are known to the model) to
+the strategic scenario where the players are optimizing their
+corresponding utility functions. We make this intuition clear
+in the following subsections by defining the utility functions
+of the students and instructor and formulating a bi-level optimization problem which yields the optimal instructor and
+students’ strategies. We denote the finite strategy set of the
+instructor and the students by Gins (of size v) and Gst (of
+size w) respectively. Let Gins = {∆a |a ∈ {1, .., v}, ∆a ∈
+[0, qb]}. Let Gst = {Λb |b ∈ {1, .., w}, Λb ∈ [0, qb]}. Let
+φ = (φ1 , · · · , φv ) be any arbitrary mixed strategy for the ini
+) be any
+structor and correspondingly, let ψ i = (ψ1i , · · · , ψw
+arbitrary mixed strategy for student i. For example, the value
+φa is the proportion of times that pure strategy ∆a is used by
+the instructor while the value ψbi represents the proportion
+of times in which pure strategy Λb is used by student i. Let
+Ω(Gins ) and Ω(Gst ) be the probability simplices for instructor and students respectively.
+
+ψ
+
+l∗
+
+= arg max
+ψl
+
+v X
+w
+X
+
+Da,b φa ψb , s.t.
+T ,l
+
+l
+
+a=1 b=1
+
+where, Da,b = Da,b
+T ,l
+
+T ,l,i
+
+w
+X
+
+l
+
+ψb = 1,
+
+l
+
+ψb ≥ 0
+
+b=1
+
+for any i ∈ Al .
+
+Instructor Optimization Problem
+We define aggregate transient utility UTI to the instructor
+when she has fixed her strategy as φ and the n students have
+fixed their policies as ψ i (1 ≤ i ≤ n). We define net-reward
+matrix B T,I,i for the instructor corresponding to each stuT,I,i
+dent i where the entry Ba,b
+denotes the aggregate utility
+(over time T ) received by the instructor w.r.t. student i’s
+arrivals, if student i chooses Λb and instructor the strategy
+∆a . The expected transient aggregate utility of the instructor
+Pv Pw Pn
+T,I,i
+i
+is given by UTI =
+a=1
+b=1
+i=1 Ba,b φa ψb where,
+I,i
+
+T,I,i
+Ba,b
+= ci RT (See Theorem 2).
+
+Proposition 2. The net-reward matrices B T,I,i , B T,I,j for the
+instructor w.r.t. students i, j belonging to Al have the following
+property: B T,I,i = B T,I,j (= B T,I,l ).
+
+Student Optimization Problem
+
+We define expected net-reward matrix DT,l,i for each student
+T,l,i
+i of type l where each entry of the matrix (Da,b
+) denotes
+the expected transient aggregate net-reward received by student i of Al when she chooses pure strategy Λb and instructor chooses the pure strategy ∆a . Now, suppose the instructor fixes a (pure/mixed) strategy φ and the student i fixes a
+(pure/mixed) strategy ψ i . The expected transient aggregate
+v P
+w
+P
+T,l,i
+utility UTl,i to a student i of Al is UTl,i =
+Da,b
+φa ψbi
+
+The instructor is the leader, so she chooses her policy φ
+first and then each student (follower) observes the strategy
+chosen by the instructor and then decides the policy ψ i :
+∗
+
+φ
+
+= arg max
+φ
+
+v X
+w X
+n
+X
+a=1 b=1 i=1
+
+T ,I,i
+
+Ba,b φa [ψ
+
+i∗
+
+(φ)]b s.t. φ ∈ Ω(G
+
+ins
+
+)
+
+ψ i∗ (φ) is an optimal strategy of student i when φ is the instructor policy. Let pl be proportion of type l students in the
+class. We know that there are nl students belonging to Al .
+We know that ψ i∗ (φ) = ψ j∗ (φ) = ψ l∗ (φ) ∀i, j ∈ Al . Using
+Proposition 2 and the student optimization problem,
+
+a=1 b=1
+
+l,i
+
+T,l,i
+where Da,b
+= RT (See Thm. 2).
+
+1047
+
+Figure 4: Variation of the optimal participation rates (λ∗ ) of each student belonging to the different types (characterized by four different α’s)
+
+with change in the instructor’s arrival rate (µ) and the maximum number of rewards (m) given to that type. The X − Z and Y − Z projections
+of Figures 4c and 4d are given as insets to aid the understanding of the graphs.
+
+φ = arg max
+∗
+
+φ
+
+s.t., ψ
+
+l∗
+
+v X
+w X
+L
+X
+
+p
+
+l
+
+question to answers from Type 1 students), m2 (budget for
+Type 2 students) where each parameter takes values: α1 ∈
+{0.01, 0.1, 0.2}, α2 ∈ {0.8, 0.9, 0.99}, m1 , m2 ∈ {2, 6, 10}
+resulting in 81 (i.e., 3×3×3×3) configurations. We first set
+the instructor bias as a low value (c1 = (0.01/n1 )) for a Type
+1 student and as a high value (c2 = (0.99/n2 )) for a Type 2
+student where n1 and n2 are number of students of Type 1
+and 2 respectively. We run the experiment for each configuration separately. As we are dealing with output from multiple experiments, we generate a scatter plot depicting optimal
+participation rates for a Type 1 student (Figure 5 (a)). We
+change the instructor behaviour to have high bias towards a
+Type 1 student and very low bias towards a Type 2 student
+fixing c1 = (0.99/n1 ) and c2 = (0.01/n2 ) and run the experiments similarly for the 81 parameter configurations as
+given above. The optimal arrival rates of a Type 1 student
+in this scenario is given in Figure 5(b). In Figures 5(a)-(b),
+each point is identified by a number between 1 and 81 and
+denotes the optimal rate for Type 1 student obtained for the
+corresponding experimental configuration.
+We observe that, if the instructor’s bias towards Student 1
+is low then there are configurations when Type 1 student will
+not participate even for medium and high rewards (for example: configs 45, 56 in Figure 5(a) have optimal rate as 0)
+whereas if the instructor’s bias towards Type 1 students is
+high, then these students start participating enthusiastically
+with high rates for medium and high rewards and increase
+their participation levels even for the lower rewards (for example: configs 45, 56 in Figure 5(a) have optimal rate 10
+while config 09 improved from rate 0 in Figure 5(a) to rate
+4 in Figure 5(b)). A similar observation can be made for the
+other type of students. Due to redundancy, we do not show
+the corresponding graph here. Thus, our model is able to incorporate the effect of instructor bias in deciding the optimal
+participation level for the different types of students.
+As part of our future work, we intend to capture the effect of student’s effort for answering a question in the OEF.
+Further, other ways for modelling OEFs ( for example: using
+Markov decision processes) could be considered. Empirical
+validations of these results hold promise as well.
+
+T ,I,l
+l∗
+Ba,b φa ψb
+
+a=1 b=1 l=1
+
+= arg max
+ψl
+
+v X
+w
+X
+
+T ,l
+
+l
+
+ins
+
+Da,b φa ψb , φ ∈ Ω(G
+
+l
+
+st
+
+), ψ ∈ Ω(G )
+
+a=1 b=1
+
+MILP Formulation
+The mixed integer quadratic program (MIQP) formulated
+above can be converted to a mixed integer linear program
+(MILP) by following the well-known approach (See Proposition 2 in (Paruchuri et al. 2008)) where they solve a
+Bayesian Stackelberg game by reducing to an MILP.
+
+Numerical Experiments
+
+We solve the MILP using ILOG-CPLEX (ILOG 2014)
+software and study the changing dynamics of the studentinstructor interactions in an online classroom by varying the
+different parameters of the model. We first study the variation in the optimal student participation rate (λ∗ ) of the
+heterogeneous student population with µ (instructor arrival
+rate) and m (budget of instructor) for different student types
+in Figure 4(a)-(d). Let α denote the cost per arrival to the
+OEF (and answering an open question if any) of a student.
+Figure 4(a) represents scenario for an excellent student (i.e.,
+α = 0.3). If we fix m, we can observe that λ∗ keeps increasing with changing µ. This means that these type of students
+are quite self motivated and keep posting on the OEF in spite
+of µ being very high. This is akin to the phenomenon of
+super-posters (Huang et al. 2014) when there are some students who always aggressively post on the OEF. Figure 4(b)
+represents scenario for good student (i.e., α = 0.6). We can
+observe a similar behaviour but for low rewards, we can see a
+dip in the participation rates. Figure 4(c)-(d) denote scenarios for weak students (α ∈ {0.8, 0.9}). However, we observe
+non-monotonic participation patterns for students with high
+cost per arrival (α = 0.8, 0.9) in Figures 4(c) and 4(d) as
+λ∗ initially increases with increasing µ and then, with any
+further increase in µ, λ∗ starts falling. This trend has been
+noted theoretically (in the homogeneous setting) in literature
+(Ghosh and Kleinberg 2013).
+Now, assume there are only two student types in the class:
+Type 1 (excellent students) and Type 2 (weak students). We
+fix these parameters: α1 , α2 , m1 (budget allocated per
+
+Acknowledgements
+This research work was partially supported by an IBM Research doctoral fellowship grant to the first author. This work
+
+1048
+
+Huang, J.; Dasgupta, A.; Ghosh, A.; Manning, J.; and
+Sanders, M. 2014. Superposter behavior in mooc forums.
+In Proceedings of the First ACM Conference on Learning @
+Scale Conference, L@S ’14, 117–126. ACM.
+ILOG, I. 2014. IBM ILOG CPLEX Optimization Studio
+V12.4. IBM.
+Jain, M.; Tsai, J.; Pita, J.; Kiekintveld, C.; Rathi, S.; Tambe,
+M.; and Ordóñez, F. 2010. Software assistants for randomized patrol planning for the LAX airport police and the federal air marshal service. Interfaces 40(4):267–290.
+Mazzolini, M., and Maddison, S. 2003. Sage, guide or
+ghost? the effect of instructor intervention on student participation in online discussion forums. Computers & Education
+40(3):237–253.
+Paruchuri, P.; Pearce, J. P.; Marecki, J.; Tambe, M.; Ordonez,
+F.; and Kraus, S. 2008. Playing games for security: an efficient exact algorithm for solving bayesian stackelberg games.
+In Proceedings of the 7th International Joint Conference on
+Autonomous Agents and Multiagent Systems-Volume 2, 895–
+902.
+Sumita, U., and Rieders, M. 1989. Lumpability and time
+reversibility in the aggregation-disaggregation method for
+large markov chains. Stochastic Models 5(1):63–81.
+Vallam, R. D.; Bhatt, P.; Mandal, D.; and Narahari, Y. 2014.
+A stackelberg game approach for incentivizing participation in online educational forums with heterogeneous student
+population : Supplementary material. Link:http://lcm.csa.
+iisc.ernet.in/rohith/AAAI2015/SupplementaryMaterial.pdf.
+
+Figure 5: Effect of Instructor bias on the optimal participation rates of a Type 1 student. Each square represents
+the respective optimal participation rate of a Type 1 student depending on parameter configuration in experiment.
+Black, Grey and White squares indicate configurations where
+m1 = 2(low rewards), m1 = 6 (medium rewards) and
+m1 = 10 (high rewards) respectively.
+was done when the third author was a project associate in
+the Game Theory Lab, Department of Computer Science and
+Automation, Indian Institute of Science, Bengaluru.
+
+References
+
+An, B.; Tambe, M.; Ordóñez, F.; Shieh, E. A.; and Kiekintveld, C. 2011. Refinement of strong stackelberg equilibria
+in security games. In Burgard, W., and Roth, D., eds., Proceedings of the Twenty-Fifth AAAI Conference on Artificial
+Intelligence, AAAI 2011, San Francisco, California, USA,
+August 7-11, 2011. AAAI Press.
+Andresen, M. A. 2009. Asynchronous discussion forums: success factors, outcomes, assessments, and limitations. Journal of Educational Technology & Society 12(1).
+Brown, M.; Saisubramanian, S.; Varakantham, P.; and
+Tambe, M. 2014. STREETS: game-theoretic traffic patrolling with exploration and exploitation. In Brodley, C. E.,
+and Stone, P., eds., Proceedings of the Twenty-Eighth AAAI
+Conference on Artificial Intelligence, July 27 -31, 2014,
+Québec City, Québec, Canada., 2966–2971. AAAI Press.
+Buchholz, P. 1994. Exact and ordinary lumpability in finite
+Markov chains. J. Appl. Prob. 31(1):59–75.
+Coursera.
+2014.
+Coursera MOOC Platform. Link:
+https://www.coursera.org/about/community.
+Fowler, G. A. 2013. An early report card on massive open
+online courses. Wall Street Journal.
+Ghosh, A., and Kleinberg, J. M. 2013. Incentivizing participation in online forums for education. In ACM Conference
+on Electronic Commerce, 525–542.
+
+1049
+
+

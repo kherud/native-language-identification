@@ -1,0 +1,2917 @@
+Published as a conference paper at ICLR 2017
+
+N ONPARAMETRIC N EURAL N ETWORKS
+George Philipp, Jaime G. Carbonell
+Carnegie Mellon University
+Pittsburgh, PA 15213, USA
+george.philipp@email.de; jgc@cs.cmu.edu
+
+A BSTRACT
+Automatically determining the optimal size of a neural network for a given task
+without prior information currently requires an expensive global search and training many networks from scratch. In this paper, we address the problem of automatically finding a good network size during a single training cycle. We introduce nonparametric neural networks, a non-probabilistic framework for conducting optimization over all possible network sizes and prove its soundness when
+network growth is limited via an `p penalty. We train networks under this framework by continuously adding new units while eliminating redundant units via an
+`2 penalty. We employ a novel optimization algorithm, which we term “Adaptive
+Radial-Angular Gradient Descent” or AdaRad, and obtain promising results.
+
+1
+
+I NTRODUCTION
+
+Automatically choosing a neural network model for a given task without prior information is a
+challenging problem. Formally, let Θ be the space of all models considered. The goal of model
+selection is then, usually, to find the value of the hyperparameter θ ∈ Θ that minimizes a certain
+criterion c(θ), such as the validation error achieved by the model represented by θ when trained
+to convergence. Because Θ is large, structured and heterogeneous, c is complex, and gradients
+of c are generally not available, the most popular methods for optimizing c perform zero-order,
+black-box optimization and do not use any information about c except its value for certain values
+of θ. These methods select one or more values of θ, compute c at those values and, based on
+the results, select new values of θ until convergence is achieved or a time limit is reached. The
+most popular such methods are grid search, random search (e.g. Bergstra & Bengio (2012)) and
+Bayesian optimization using Gaussian processes (e.g. Snoek et al. (2012)). Others utilize random
+forests (Hutter et al., 2009), deep neural networks (Snoek et al., 2015) and recently Bayesian neural
+networks (Springenberg et al., 2016) and reinforcement learning (Zoph & Le, 2017).
+These black-box methods have two drawbacks. (A) To obtain each value of c, they execute a full
+network training run. Each run can take days on many cores or multiple GPUs. (B) They do not
+exploit opportunities to improve the value of c further by altering θ during each training run. In
+this paper, we present a framework we term nonparametric neural networks for selecting network
+size. We dynamically and automatically shrink and expand the network as needed to select a good
+network size during a single training run. Further, by altering network size during training, the
+network ultimately chosen can achieve a higher accuracy than networks of the same size that are
+trained from scratch and, in some cases, achieve a higher accuracy than is possible by black-box
+methods.
+There has been a recent surge of interest in eliminating unnecessary units from neural networks,
+either during training or after training is complete. This strategy is called pruning. Alvarez &
+Salzmann (2016) utilize an `2 penalty to eliminate units and Molchanov et al. (2017) compare a
+variety of strategies, whereas Figurnov et al. (2016) focuses on thinning convolutional layers in
+the spatial dimensions. While some of these methods even allow some previously pruned units to
+be added back in (e.g. Feng & Darrell (2015)), all of these strategies require a high-performing
+network model as a starting point from which to prune, something that is generally only available in
+well-studied vision and NLP tasks. We do not require such a starting point in this paper.
+In section 2, we introduce the nonparametric framework and state its theoretical soundness, which
+we prove in section 7.1. In section 3, we develop the machinery for training nonparametric networks,
+1
+
+Published as a conference paper at ICLR 2017
+
+including a novel normalization layer in section 3.2, CapNorm, and a novel training algorithm in
+section 3.3, AdaRad. We provide experimental evaluation and analysis in section 4, further relevant
+literature in section 5 and conclude in section 6.
+
+2
+
+N ONPARAMETRIC N EURAL N ETWORKS
+
+For the purpose of this section, we define a parametric neural network as a function
+f (x) = σL .(σL−1 .(..σ2 .(σ1 .(xW1 )W2 )..)WL ) of a d0 -dimensional row vector x, where Wl ∈
+Rdl−1 ∗dl , 1 ≤ l ≤ L are dense weight matrices of fixed dimension and σl : R → R, 1 ≤ l ≤ L
+are fixed non-linear transformations that are applied elementwise, as signified by the .() operator.
+The number of layers L is also fixed.
+P Further, the weight matrices are trained by solving the mini1
+mization problem minW=(W )l |D|
+(x,y)∈D e(f (W, x), y) + Ω(W), where D is the dataset, e is
+an error function that consumes a vector of fixed size dL and the label y, and Ω is the regularizer.
+We define a nonparametric neural network in the same way, except that the dimensionality of the
+weight matrices is undetermined. Hence, the optimization problem becomes
+1
+d=(d)l ,dl ∈Z+ ,1≤l≤L−1 W=(W )l ,Wl ∈Rdl−1 ∗dl ,1≤l≤L |D|
+min
+
+min
+
+X
+
+e(f (W, x), y) + Ω(W)
+
+(1)
+
+(x,y)∈D
+
+Note that the dimensions d0 and dL are fixed because the data and the error function e are fixed. The
+parameter value now takes the form of a pair (d, W).
+There is no guarantee that optimization problem 1 has a global minimum. We may be able to
+reduce the value of the objective further and further by using larger and larger networks. This would
+be problematic, because as networks become better and better with regards to the objective, they
+would become more and more undesirable in practice. It turns out that in an important case, this
+degeneration does not occur. Define the fan-in regularizer Ωin and the fan-out regularizer Ωout as
+
+Ωin (W, λ, p)
+
+= λ
+
+dl
+L X
+X
+
+||[Wl (1, j), Wl (2, j), .., Wl (dl−1 , j)]||p
+
+(2)
+
+||[Wl (i, 1), Wl (i, 2), .., Wl (i, dl )]||p
+
+(3)
+
+l=1 j=1
+
+Ωout (W, λ, p)
+
+= λ
+
+L dX
+l−1
+X
+l=1 i=1
+
+In plain language, we either penalize the incoming weights (fan-in) of each unit with a p-norm,
+or the outgoing weights (fan-out) of each unit. We now state the core theorem that justifies our
+formulation of nonparametric networks. The proof is found in the appendix in section 7.1.
+Theorem 1. Nonparametric neural networks achieve a global training error minimum at some finite
+dimensionality when Ω is a fan-in or a fan-out regularizer with λ > 0 and 1 ≤ p < ∞.
+
+3
+
+T RAINING NONPARAMETRIC NETWORKS
+
+Training nonparametric networks is more difficult than training parametric networks, because the
+space over which we optimize the parameter (d, W) is no longer a space of form Rd , but is an
+infinite, discrete union of such spaces. However, we would still like to utilize local, gradient-based
+search. We notice, like (Wei et al., 2016), that there are pairs of parameter values with different
+dimensionality that are still in some sense “close” to one another. Specifically, we say that two
+parameter values (d1 , W1 ) and (d2 , W2 ) are f -equivalent if ∀x ∈ Rd0 , f (W1 , x) = f (W2 , x)
+where not necessarily d1 = d2 . During iterative optimization, we can “jump” between those two
+parameter values while maintaining the output of f and thus preserving locality. We define a zero
+unit as any unit for which either the fan-in or fan-out or both are the zero vector. Given any parameter
+value, the most obvious way of generating another parameter value that is f -equivalent to it is to
+add a zero unit to any hidden layer l where σl (0) = 0 holds. Further, if we have a parameter value
+2
+
+Published as a conference paper at ICLR 2017
+
+that already contains a zero unit in such a hidden layer, removing it yields an f -equivalent parameter
+value.
+Thus, we will use the following strategy for training nonparametric networks. We use gradient-based
+methods to adjust W while periodically adding and removing zero units. We use only nonlinearities
+that satisfy σ(0) = 0. It should be noted that while adding and removing zero units leaves the output
+of f invariant, it does change the value of the fan-in and fan-out regularizers and thus the value of
+the objective. While it is possible to design regularizers that do not penalize such zero units, this is
+highly undesirable as it would stifle the regularizers ability to “reign in” the growth of the network
+during training.
+To be able to reduce the network size during training, we must produce zero units and, it turns out,
+the fan-in and fan-out regularizers naturally produce such units as they induce sparsity, i.e. they
+cause individual weights to become exactly zero. This is well studied under the umbrella of sparse
+regression (see e.g. Tibshirani (1996)). The cases p = 1 and p = 2 are especially attractive because
+it is computationally convenient to integrate them into a gradient-based optimization framework via
+a shrinkage / group shrinkage operator respectively (see e.g. Back & Teboulle (2006)). Further,
+p = 1 and p = 2 differ in their effect on the parameter value. p = 1 sets individual weights to
+zero and thus leads to sparse fan-ins and fan-outs and thus ultimately to sparse weight matrices. A
+unit can only become a zero unit if each weight in its fan-in or each weight in its fan-out has been
+set to zero individually. p = 2, on the other hand, sets entire fan-ins (for the fan-in regularizer) or
+fan-outs (for the fan-out regularizer) to zero at once. Once the resulting zero units are removed, we
+obtain dense weight matrices. (For a basic comparison of 1-norm and 2-norm regularizers, see Yuan
+& Lin (2006) and for a comparison in the context of neural networks, see Collins & Kohli (2014).)
+While there is recent interest in learning very sparse weight matrices (e.g. Guo et al. (2016)), current
+hardware is geared towards dense weight matrices (Wen et al., 2016). Hence, for the remainder of
+this paper, we will focus on the case p = 2. Further, we will focus on the fan-in rather than the
+fan-out regularizer.
+When a new zero unit is added, we must choose its fan-in and fan-out. While one of the two weight
+vectors must be zero, the other can have an arbitrary value. We make the simple choice of initializing
+the other weight vector randomly. Since we are going to use the fan-in regularizer, we will initialize
+the fan-out to zero and the fan-in randomly. This will give each new unit the chance to learn and
+become useful before the regularizer can shrink its fan-in to zero. If it does become zero nonetheless,
+the unit is eliminated.
+3.1
+
+S ELF - SIMILAR NONLINEARITIES
+
+For layers 1 through L − 1, it is best to use nonlinearities that satisfy σ(cs) = cσ(s) for all c ∈ R≥0
+and s ∈ R. We call such nonlinearities self-similar. ReLU (Dahl et al., 2013) is an example of this.
+Self-similarity also implies σ(0) = 0.
+Recall that the fan-in and fan-out regularizers shrink the values of weights during training. This in
+turn affects the scale of the values to which the nonlinearities are applied. (These values are called
+pre-activations.) The advantage of self-similar nonlinearities is that this change of scale does not
+affect the shape of the feature.
+In contrast, the impact of a nonlinearity such as tanh on pre-activations varies greatly based on their
+scale. If the pre-activations have very large absolute values, tanh effectively has a binary output.
+If they have very small absolute values, tanh mimics a linear function. In fact, all nonlinearities
+that are differentiable at 0 behave approximately like a linear function if the pre-activations have
+sufficiently small absolute values. This would render the unit ineffective. Since we expect some
+units to have small pre-activations due to shrinkage, this is undesirable.
+By being invariant to the scale of pre-activations, self-similar nonlinearities further eliminate the
+need to tune how much regularization to assign to each layer. This is expressed in the following
+proposition which is proved in section 7.2.
+Proposition 1. If all nonlinearities in a nonparametric network model except possibly σL are selfsimilar, then the objective function 1 using a fan-in or fan-out regularizer with different regularization parameters λ1 , .., λL for each layer is equivalent to the same objective function using the single
+QL
+1
+regularization parameter λ = ( l=1 λl ) L for each layer, up to rescaling of weights.
+3
+
+Published as a conference paper at ICLR 2017
+
+1
+
+2
+3
+4
+
+5
+6
+7
+8
+9
+10
+11
+
+12
+13
+
+input: αr : radial step size; αφ : angular step size; λ: regularization hyperparameter; β: mixing
+rate; : numerical stabilizer; d0 : initial dimensions; W0 : initial weights; ν: unit addition
+rate; νfreq : unit addition frequency; T : number of iterations
+φmax = 0; cmax = 0; d = d0 ; W = W0 ;
+for l = 1 to L do
+set φ̄l (angular quadratic running average) and cl (angular quadratic running average capacity)
+to zero vectors of size d0l ;
+end
+for t = 1 to T do
+set Dt to mini-batch used at iteration t;
+P
+1
+G = |D|
+∇W (x,y)∈Dt e(f (W, x), y);
+for l = L to 1 do
+for j = dl to 1 do
+decompose [Gl (i, j)]i into a component parallel to [Wl (i, j)]i (call it r) and a
+component orthogonal to [Wl (i, j)]i (call it φ) such that [Gl (i, j)]i = r + φ;
+φ̄l (j) = (1 − β)φ̄l (j) + β||φ||22 ; cl (j) = (1 − β)cl (j) + β;
+φmax = max(φ
+max , φ̄l (j)); cmax = max(cmax , cl (j)) ;
+q
+φadj =
+
+14
+
+φmax
+cmax
+
+r
+
+φ̄l (j)
++
+cl (j)
+
+φ;
+
+[Wl (i, j)]i = [Wl (i, j)]i − αr r ;
+φ
+rotate [Wl (i, j)]i by angle αφ ||φadj ||2 in direction − ||φadjadj||2 ;
+
+15
+16
+
+t
+
+17
+18
+19
+
+20
+21
+22
+23
+24
+
+25
+26
+27
+28
+
+|
+shrink([Wl (i, j)]i , αr λ |D
+|D| );
+if l < L and [Wl (i, j)]i is a zero vector then
+remove column j from Wl ; remove row j from Wl+1 ; remove element j from φ̄l
+and cl ; decrement dl ;
+end
+end
+if t = 0 mod νfreq then
+ν 0 = ν;
+// if ν 6∈ Z, we can set e.g. ν 0 = Poisson(ν)
+0
+add ν randomly initialized columns to Wl ; add ν 0 zero rows to Wl+1 ; add ν 0 zero
+elements to φ̄l and cl ; dl = dl + ν 0 ;
+end
+end
+end
+return W;
+Algorithm 1: AdaRad with `2 fan-in regularizer and the unit addition / removal scheme used in this
+paper in its most instructive (bot not fastest) order of computation. Note that []i notation is used to
+indicate a vector over index i.
+
+3.2
+
+C APPED BATCH NORMALIZATION (CapNorm)
+
+Recently, Ioffe & Szegedy (2015) proposed a strategy called batch normalization that quickly became the standard for keeping feed-forward networks well-conditioned during training. In our experiments, nonparametric networks trained without batch normalization could not compete with
+parametric networks trained with it. Batch normalization cannot be applied directly to nonparametric networks with a fan-in or fan-out regularizer, as it would allow us to shrink the absolute value of
+individual weights arbitrarily while compensating with the batch normalization layer, thus negating
+the regularizer. Hence, we make a small adjustment which results in a strategy we term capped
+batch normalization or CapNorm. We subtract the mean of the pre-activations of each hidden unit,
+but only scale their standard deviation if that standard deviation is greater than one. If it is less than
+one, we do not scale it. Also, after the normalization, we do not add or multiply the result with a
+z−µ
+free parameter. Hence, CapNorm replaces each pre-activation z with max(σ,1)
+, where µ is the mean
+and σ is the standard deviation of that unit’s pre-activations across the current mini-batch.
+4
+
+Published as a conference paper at ICLR 2017
+
+Table 1: Computational cost of efficient implementations of various algorithms, per mini-batch and
+weight. Operations that do not scale with the number of weights are not included. Operations
+associated with the computation of the gradient of the loss term (e.g. lines 7 and 8 in algorithm 1)
+as well as unit addition and removal (e.g. lines 18 to 24 in algorithm 1) are not included as they do
+not vary between algorithms.
+Algorithm
+
+Network types
+
+Cost per mini-batch and weight
+
+SGD, no `2 shrinkage
+SGD with `2 shrinkage
+AdaRad, no `2 shrinkage
+AdaRad with `2 shrinkage
+RMSprop, no `2 shrinkage
+RMSprop with `2 shrinkage
+
+param., nonparam.
+param., nonparam.
+param., nonparam.
+param., nonparam.
+param.
+param.
+
+1 multiplication
+3 multiplications
+4 multiplications
+4 multiplications
+4 multiplications, 1 division, 1 square root
+6 multiplications, 1 division, 1 square root
+
+3.3
+
+A DAPTIVE R ADIAL -A NGULAR G RADIENT D ESCENT (AdaRad)
+
+The staple method for training neural networks is stochastic gradient descent. Further, there are
+several popular variants: momentum and Nesterov momentum (Sutskever et al., 2013), AdaGrad
+(Duchi et al., 2011) and AdaDelta (Zeiler, 2012), RMSprop (Tieleman & Hinton, 2012) and Adam
+(Kingma & Ba, 2015). All of these methods center around two key principles: (1) averaging the
+gradient obtained over consecutive iterations to smooth out oscillations and (2) normalizing each
+component of the gradient so that each weight learns at roughly the same speed. Principle (2) turns
+out to be especially important for nonparametric neural networks. When a new unit is added, it
+does not initially contribute to the quality of the output of the network and so does not receive much
+gradient from the loss term. If the gradient is not normalized, that unit may take a very long time to
+learn anything useful. However, if we use a fan-in regularizer, we cannot normalize the components
+of the gradient outright as in e.g. RMSprop, as we would also have to scale the amount of shrinkage
+induced by the regularizer accordingly. This, in turn, would cause the fan-in of new units to become
+zero before they can learn anything useful.
+We resolve this dilemma with a new training algorithm: Adaptive Radial-Angular Gradient Descent
+(AdaRad), shown in algorithm 1. Like in all the algorithms cited above, we begin each iteration
+by computing the gradient G of the loss term over the current mini-batch (line 8). Then, for each
+1 ≤ l ≤ L and 1 ≤ j ≤ dl , we decompose the sub-vector [Gl (1, j), Gl (2, j), .., Gl (dl−1 , j)] into a
+component parallel to its corresponding fan-in [Wl (1, j), Wl (2, j), .., Wl (dl−1 , j)] and a component
+orthogonal to it (line 11). Out of the two, we normalize only the orthogonal component (line 14)
+while the parallel component is left unaltered. Finally, the normalized orthogonal component of
+each sub-vector is added to its corresponding fan-in in radial-angular coordinates instead of cartesian
+coordinates (line 16). This ensures that it does not affect the length of the fan-in. Like the parallel
+component, we leave the induced shrinkage unaltered. Note that `2 shrinkage acts only to shorten
+the length of each fan-in, but does not alter its direction. Hence, AdaRad with an `2 regularizer
+applies a normalized shift to each fan-in that alters its direction but not its length (angular shift), as
+well as an un-normalized shift that includes shrinkage that alters the length of the fan-in but not its
+direction (radial shift, lines 15 and 17).
+AdaRad has two step sizes: One for the radial and one for the angular shift, αr and αφ respectively.
+This is desirable as they both control the behavior of the training algorithm in different ways. The
+radial step size controls how long it takes for the fan-in of a unit to be shrunk to zero, i.e. the time
+a unit has to learn something useful. On the other hand, the angular step size controls the general
+speed of learning and is tuned to achieve the quickest possible descent along the error surface.
+Like RMSprop and unlike Adam, AdaRad does not make use of the principle of momentum. We
+have developed a variant called AdaRad-M that does. It is described in the appendix in section 7.3.
+Using AdaRad over SGD incurs additional computational cost. However, that cost scales more
+gracefully than the cost of, for example, RMSprop. AdaRad normalizes at the granularity of fan-ins
+instead of the granularity of individual weights, so many of its operations scale only with the number
+of units and not with the number of weights in the network. In Table 1, we compare the costs of SGD,
+5
+
+Published as a conference paper at ICLR 2017
+
+e
+Label
+
+Cross-Entropy
+
+x
+
+σl
+
+Wl
+
+Data
+
+Linear
+
+CapNorm
+
+WL
+ReLU
+
+Linear
+
+σL
+CapNorm
+
+Softmax
+
+L-1 repetitions
+Figure 1: Architecture of the nonparametric networks used in the experiments. Activations flow
+rightward, gradients flow leftward. In color, we show how each element corresponds to our definition of a neural network in section 2. CapNorm does not fully fit our definition of nonlinearity as it
+requires information from multiple datapoints to compute its value. Hence, theorem 1 and proposition 1 do not technically apply. However, CapNorm is a benign operation that does not lead to
+problems in practice.
+
+AdaRad and RMSprop. Further, RMSprop has a larger memory footprint than AdaRad. Compared
+to SGD, it requires an additional cache of size equal to the number of weights, whereas AdaRad
+only requires 2 additional caches of size equal to the number of units.
+
+4
+
+E XPERIMENTS
+
+We evaluated our framework using the network architecture shown in Figure 1 with ReLU nonlinearities and CapNorm, and using AdaRad as the training algorithm. We used two hidden layers
+(L = 3) and started off with ten units in each hidden layer and each fan-in initialized randomly with
+expected length 1. We add one new unit with random fan-in of expected length 1 and zero fan-out
+to each layer every epoch. While this does not lead to fast convergence - we have to wait until tens
+or hundreds of units are added - we believe that growing nets from scratch is a good test case for
+investigating the robustness of our framework. After the validation error stopped improving, we
+1
+, as
+ceased adding units, allowing all remaining redundant units to be eliminated. We set αr = 50λ
+this allows each new unit ≈ 50 epochs to train before being eliminated by shrinkage, assuming the
+length of the fan-in is not altered by the gradient of the loss term.
+When training parametric networks, we replaced CapNorm with batch normalization, either with
+or without trainable free mean and variance parameters. We trained the network using one of the
+following algorithms: SGD, momentum, Nesterov momentum, RMSprop or Adam. Further experimental details can be found in the appendix in section 7.4.
+4.1
+
+P ERFORMANCE
+
+In this section, we investigate our two core questions: (A) Do nonparametric networks converge to
+a good size? (B) Do nonparametric networks achieve higher accuracy than parametric networks?
+We evaluated our framework using three standard benchmark datasets - the mnist dataset, the rectangles images dataset and the convex dataset (Bergstra & Bengio, 2012). We started by training
+nonparametric networks. Through preliminary experiments, we determined a good starting angular
+step size for all datasets. We chose to start with αφ = 30 and repeatedly divided αφ by 3 when the
+validation error stopped improving. By varying the random seed, we trained 10 nets each for several
+values of the regularization parameter λ per dataset and then chose a typical representative from
+among those 10 trained nets. Results are shown in black in figure 2. Values of λ are 3 ∗ 10−3 , 10−3
+and 3 ∗ 10−4 for MNIST, 3 ∗ 10−5 and 10−6 for rectangles images and 10−5 and 10−8 for convex.
+6
+
+Published as a conference paper at ICLR 2017
+
+convex
+
+rectangles images
+
+4
+
+Number of parameters (∗10 )
+
+0.245
+0.24
+0.235
+0.23
+(61;16)
+0.225
+(84;79)
+(323;204)
+(89;104)
+0.22
+0 5 10 15 20 25 30 35 40
+4
+
+Number of parameters (∗10 )
+
+Test classification error
+
+0.25
+Test classification error
+
+Test classification error
+
+MNIST
+0.03
+0.028
+0.026
+0.024
+0.022
+0.02
+0.018
+0.016
+(56;10)
+0.014
+(103;21) (343;164)
+0.012
+(144;46)
+(694;169)
+0.01
+0 10 20 30 40 50 60 70 80
+
+0.32
+(108;54)
+0.3
+(227;227)
+0.28 (328;340)
+(544;607)
+
+0.26
+
+(1113;1004)
+
+0.24
+0.22
+0.2
+0
+
+50
+
+100
+
+150
+
+200
+
+Number of parameters (∗104 )
+
+Figure 2: Test classification error of trained networks. Nonparametric networks are shown in black,
+parametric networks in red and blue. Error bars indicate the range over 10 random reruns of the same
+setting. For parametric networks, the square represents the median test error over those 10 runs. For
+nonparametric networks, the square represents the test error and size of a single representative run
+that was close to the median in both size and error. In brackets below or above each plotted point,
+we show the number of units in the two hidden layers.
+
+Then, we trained parametric networks of the same size as the chosen representatives. The top performers after an exhaustive grid search are shown in red in figure 2. Finally, we conducted an
+exhaustive random search where we also varied the size of both hidden layers. The top performers
+are shown in blue in the same figure.
+We obtain different results for the three datasets. For mnist, nonparametric networks substantially
+outperform parametric networks of the same size. The best nonparametric network is close in performance to the best parametric network, while being substantially smaller (144 first layer units
+versus 694). For rectangles images, nonparametric networks underperform parametric networks of
+the same size when λ is large and outperform them when λ is small. Here, the best nonparametric
+network has the globally best performance, as measured by the median test error over 10 random
+reruns, using substantially fewer parameters than the best parametric network.
+While results for the first two datasets are very promising, nonparametric networks performed badly
+on the convex dataset. Parametric networks of the same size perform substantially better and also
+have a smaller range of performance across random reruns. Even if the model found by training
+nonparametric networks were re-trained as a parametric network, the apparent tendency of nonparametric networks to converge to relatively small sizes hurts us here as we would still miss out on a
+significant amount of performance.
+We also conducted experiments with AdaRad-M, but found that performance was very similar to that
+of AdaRad. Hence, we omit the results. Similarly, we found no significant difference in performance
+between parametric networks trained with RMSprop and those trained with Adam.
+4.2
+
+A NALYSIS OF THE NONPARAMETRIC TRAINING PROCESS
+
+In this section, we analyze in detail a single training run of a nonparametric network. We chose
+mnist as dataset, set λ = 3 ∗ 10−4 and lowered the angular step size to 10 as we did not use step size
+annealing. We trained for 1000 epochs while adding one unit to each hidden layer per epoch, then
+trained another 1000 epochs without adding new units. The final network had 193 units in the first
+hidden layer and 36 units in the second hidden layer. The results are shown in figure 3.
+In part (A), we show the validation classification error. As a comparison, we trained two parametric
+networks with 193 and 36 hidden units for 1000 epochs, once using SGD and the same step size and
+λ as the nonparametric network, and once using optimal settings (RMSprop, α = 300, λ = 0). It is
+not suprising that the parametric networks reach a good accuracy level faster, as the nonparametric
+network must wait for its units to be added. Also, the parametric network benefits from an increased
+step size - in this case α = 300. This was true throughout our experimental evaluation.
+7
+
+Published as a conference paper at ICLR 2017
+
+(A) Validation classification error
+
+0.04
+
+0.4
+
+0.03
+
+0.3
+
+0.02
+
+0.2
+
+250
+
+NP, λ = 3 ∗ 10−4 , αφ = 10
+P, λ = 3 ∗ 10−4 , α = 10
+P, λ = 0, α = 300
+0.1
+
+0
+
+Number of units offset 2.5,0
+
+0.5
+
+NP, λ = 3 ∗ 10−4 , αφ = 10
+0.01
+P, λ = 3 ∗ 10−4 , α = 10
+P, λ = 0, α = 300
+
+(C) Size of hidden layers
+
+(B) Training cross-entropy error
+
+0.05
+
+150
+100
+50
+
+100
+
+200
+
+300
+
+400
+
+500
+
+0
+
+100
+
+Epoch
+
+200
+
+300
+
+400
+
+0
+
+500
+
+Epoch
+(F) Lengths of fans in 2nd hidden layer
+
+2000
+
+2
+
+2
+
+1500
+
+1.5
+
+1.5
+
+1000
+
+1
+
+1
+
+500
+
+0.5
+
+0.5
+
+0
+
+250
+
+500
+Epoch
+
+250 500 750 1000 1250 1500
+
+Epoch
+
+(D) Life lengths of units in 1st hidden layer (E) Lengths of fans in 1st hidden layer
+
+0
+
+1st hidden layer
+2nd hidden layer
+
+0
+
+0
+0
+
+Number of epochs present
+
+200
+
+750
+
+1000
+
+0
+
+0
+
+250
+
+500
+
+750 1000 1250
+
+Epoch
+
+0
+
+0
+
+250
+
+500
+
+750 1000 1250
+
+Epoch
+
+Figure 3: Detailed statistics of a nonparametric training run. See main text for details.
+
+In (B), we show the training cross-entropy error for the same training runs. Interestingly, parametric
+networks reach an error very close to zero. In fact, the unregularized network reaches a value of
+≈ 10−6 and the regularized network reaches a value of ≈ 10−4 . Both made zero classification
+mistakes on the training set after training. In contrast, the nonparametric network did not have a
+near-zero training cross-entropy error. Towards the end of training, it still misclassified around 30
+out of 50.000 training examples. However, this did not harm its performance on the validation or
+test set. In fact, the validation error of nonparametric networks tended to improve slowly for many
+epochs, whereas unregularized parametric networks (which were the best parametric networks when
+early stopping is used) tended to have a slightly increasing validation error in the long run.
+In (C), we show the size of the two hidden layers during training. These curves are very typical of
+all training runs we examined. For the first ≈ 50 epochs, no units are eliminated. This is because
+1
+, which guarantees that units that are added with a fan-in of length 1 take ≈ 50
+we chose αr = 50λ
+epochs to be eliminated, assuming no impact from the gradient of the loss term. If the layer requires
+a relatively large number of units, it will keep growing linearly for a while and then either plateau
+or shrink slightly. Once we no longer add units after 1000 epochs, both layers shrink linearly by
+≈ 50 units over ≈ 50 iterations, as the units that were added roughly between epochs 950 and
+1000 are eliminated in succession. Overall, this process shows the value of controlling αφ and αr
+independently, as we can manage the “overhead” of extraneous units present during training while
+still ensuring an ideal speed of learning. In (D), we show the length of time individual units in the
+first hidden layer were present during training. On the x axis, we show the epoch during which a
+given unit was added. On the y axis, we show the number of epochs the unit was present. Green
+bars represent units that survived until the end, while black bars represent units that did not. As
+one might expect, units were more likely to survive the earlier they were added. Units that did not
+survive were eliminated in ≈ 50 epochs. The same graph for the second hidden layer is shown in
+figure 4.
+In (E) and (F), we show the lengths of fan-ins (blue) and fan-outs (red) of units in the hidden layers.
+For each layer, we depict the following units in dark colors: three randomly chosen units that were
+initially present as well as units that were added at epochs 0, 25, 50, 100, 200, 300, .., 1000. In
+addition, in light colors, we show three units that were added late but not eliminated. We see a
+8
+
+Published as a conference paper at ICLR 2017
+
+Table 2: Test classification error of various models trained on the poker dataset.
+Algorithm
+
+λ
+
+Starting net size
+
+Final net size
+
+Error
+
+23-24-15-4
+94-135-105-35
+210-251-224-104
+299-258-259-129
+unchanged
+unchanged
+unchanged
+unchanged
+
+49.9%
+48.3%
+26.8%
+0.62%
+0.022%
+0.001%
+0%
+0.20%
+0.003%
+0.003%
+0.002%
+
+Logistic regression (ours)
+Naive bayes (OpenML)
+Decision tree (OpenML)
+Nonparametric net
+
+Parametric net
+
+10−3
+10−5
+10−6
+10−7
+
+10-10-10-10
+10-10-10-10
+10-10-10-10
+10-10-10-10
+23-24-15-4
+94-135-105-35
+210-251-224-104
+299-258-259-129
+
+consistent pattern for individual units. First, their length decreases linearly as the CapNorm layer
+filters the component of the gradient parallel to the fan-ins as long as the standard deviation of the
+pre-activations σ exceeds 1. During this period, the unit learns something useful and so the fan-out
+increases in length. When finally σ < 1, the parallel component of the gradient starts to slow down
+the decay and, if the unit has become useful enough, reverses it. If the decay is not reversed, the unit
+is eliminated. If it is reversed, both fan-in and fan-out will attain a length comparable to those of
+well-established units.
+From a global perspective, we notice that fan-ins in the first layer have lengths much less than 1.
+This is because first layer units encode primarily AND functions of highly correlated input features,
+meaning weights of small magnitude are sufficient to attain σ = 1. In contrast, lengths of fan-ins
+in the second layer are more chaotic. We found this is because σ = 1 is generally NOT attained
+in the second layer. In fact, the network compensated for lower activation values in the second
+layer by assigning fan-ins of stable lengths between 3.5 and 4.5 to the 10 output units. The network
+can assign these lengths dynamically without altering the output of the network because ReLU is
+self-similar, as described in section 3.1.
+4.3
+
+S CALABILITY
+
+Finally, we wanted to verify whether nonparametric networks could be applied to a large dataset.
+We visited OpenML http://www.openml.org/, a website containing many datasets as well
+as the performance of various machine learning models applied to those datasets. We applied nonparametric networks to the largest classification dataset 1 on OpenML meeting our standards 2 . This
+was the poker dataset http://www.openml.org/d/354. It is a binary classification dataset
+with 1.025.010 datapoints and 14 features per datapoint. We had no prior information about this
+dataset. In general, we think that nonparametric networks are most useful in cases with no prior
+information and thus no possibility of choosing a good parametric model a priori.
+We made the following changes to the experimental setup for poker: (i) we used 4 hidden layers
+instead of 2 (ii) we added a unit every tenth of an epoch instead of every epoch and (iii) we multiplied
+1
+. The latter two changes were made as poker is approximately
+the radial step size by 10, i.e. αr = 5λ
+one order of magnitude larger than mnist, and we wanted to approximately preserve the rate of unit
+addition and elimination per mini-batch. Those changes were made a priori and were not based on
+examining their performance.
+After some exploration, we set the starting angular step size for nonparametric networks to 10. We
+trained nonparametric networks for various values of λ, obtaining nets of different sizes. We then
+trained parametric networks of those same sizes with RMSprop, where the step size was chosen by
+validation, independently for each network size.
+1
+
+in terms of number of datapoints
+our standards were: at least 10 published classification accuracy values; no published classification accuracy values exceeding 95%; no extreme label imbalance
+2
+
+9
+
+Published as a conference paper at ICLR 2017
+
+The results are shown in Table 2. Both parametric and nonparametric networks perform very well,
+achieving less than 1% test error even for small networks. The nonparametric networks had a higher
+error for larger values of λ and a slightly lower error for smaller values of λ. In fact, the best
+nonparametric network made no mistake on the test set of 100.000 examples. For comparison, we
+show that linear models perform roughly as well as random guessing on poker. Also, the best result
+published on OpenML, achieved by a decision tree classifier, vastly underperforms our 4-hidden
+layer networks.
+To achieve convergence, networks required many more mini-batches on poker than they did on
+the smaller datasets used in section 4.1. However, since units were added to the nonparametric
+networks at roughly the same rate per mini-batch, the time it took those networks to converge to a
+stable network size (as in Figure 3C) was a much smaller fraction of the overall training time under
+poker compared to the smaller datasets. Thus, the downside of increased training time as shown in
+Figure 3A incurred when networks are built gradually was ameliorated.
+
+5
+
+F URTHER BACKGROUND
+
+Several strategies have been introduced to address the drawbacks of black-box model selection.
+Maclaurin et al. (2015) indeed calculate the gradient of the validation error after training with respect to certain hyperparameters, though their method only applies to specific networks trained with
+very specific algorithms. (Luketina et al., 2016) and (Larsen et al., 1998) train certain hyperparameters jointly with the network using second order information. Such methods are limited to
+continuous hyperparameters and are often applied specifically to regularization hyperparameters.
+Several papers try to speed up the global model search by estimating the validation error of trained
+networks without fully training them. Saxe et al. (2011) use the validation error with randomly initialized convolutional layers as a proxy. Klein et al. (2017) predict the validation error after training
+based on the progress made during the first few epochs.
+Several papers have achieved increased performance by growing networks during training. Our
+main inspiration was Wei et al. (2016), who utilize a notion similar to our f -equivalence, though
+they enlarge their network in a somewhat ad-hoc way. The work of Chen et al. (2016) is similar, but
+focuses on convergence speed. Pandey & Dukkipati (2014) transform a trained small network into
+a larger network by multiplying weight matrices with large, random matrices.
+The performance of a network of given size can be improved by injecting knowledge from other
+nets trained on the same task. Ba & Caruana (2014) use the predictions of a large network on a
+dataset to train a smaller network on those predictions, achieving an accuracy comparable to the
+large network. Hinton et al. (2015) compress the information stored in an ensemble of networks
+into a single network. Simonyan & Zisserman (2015) train very deep convolutional networks by
+initializing some layers with the trained layers of shallower networks. Romero et al. (2015) train
+deep, thin networks utilizing hints from wider, shallower networks.
+Bayesian neural networks (e.g. McKay (1992), De Freitas (2003)) use a probabilistic prior instead of
+a regularizer to control the complexity of the network. Gaussian processes can been used to mimick
+“infinitely wide” neural networks (e.g. Williams (1997), Hazan & Jaakkola (2015)), thus eliminating
+the need to choose layer width and replacing it with the need to choose a kernel. Compared to these
+and other Bayesian approaches, we work within the popular feed-forward function optimization
+paradigm, which has advantages in terms of computational and algorithmic complexity.
+Adding units to a network one at a time is an idea with a long history. Ash (1989) adds units to a
+single hidden layer, whereas Gallant (1986) builds up pyramid and tower structures and Fahlman &
+Lebiere (1990) effectively create a new layer for each new unit. While these papers provided inspiration to us, the methods they present for determining when to add a new unit requires training the
+network to convergence first, which is impractical in modern settings. We circumvent this problem
+by adding units agnostically and providing a mechanism for removing unnecessary units.
+
+10
+
+Published as a conference paper at ICLR 2017
+
+6
+
+C ONCLUSION
+
+We introduced nonparametric neural networks - a simple, general framework for automatically
+adapting and choosing the size of a neural network during a single training run. We improved
+the performance of the trained nets beyond what is achieved by regular parametric networks of the
+same size and obtained results competitive with those of an exhaustive random search, for two of
+three datasets. While we believe there is room for performance improvement in several areas - e.g.
+unit initialization, unit addition schedule, additional regularization and starting network size - we
+see this paper as validation of the basic concept. We also proved the theoretical soundness of the
+framework.
+In future work, we plan to extend our framework to include convolutional layers and to automatically
+choosing the depth of networks, as done by e.g. Wen et al. (2016). Part of our motivation to develop
+nonparametric networks was to control the layer size via a continuous parameter. We want to make
+use of this by tuning λ during training, either by simple annealing or in a comprehensive framework
+such as the one introduced in Luketina et al. (2016). We want to use nonparametric networks to
+learn more complicated network topologies for e.g. semi-supervised or multi-task learning. Finally,
+we plan to investigate the possibility of sampling units with different nonlinearities and training an
+ever-growing network for lifelong learning.
+
+R EFERENCES
+Jose M. Alvarez and Mathieu Salzmann. Learning the number of neurons in deep networks. In
+NIPS, 2016.
+Timur Ash. Dynamic node creation in backpropagation networks. Institute for Cognitive Science,
+UCSD, Technical Report 8901, 1989.
+Lei Jimmy Ba and Rich Caruana. Do deep nets really need to be deep? In NIPS, 2014.
+Amir Back and Marc Teboulle. A fast iterative shrinkage-thresholding algorithm for linear inverse
+problems. SIAM J Imaging Sciences, 2:183–202, 2006.
+James Bergstra and Yoshua Bengio. Random search for hyper-parameter optimization. JMLR, 13:
+281–305, 2012.
+Tianqi Chen, Ian Goodfellow, and Jonathon Shlens. Net2net: accelerating learning via knowledge
+transfer. In ICLR, 2016.
+Maxwell D. Collins and Pushmeet Kohli. Memory bounded deep convolutional networks. CoRR,
+pp. abs/1412.1442, 2014.
+George E. Dahl, Tara N. Sainath, and Geoffrey E. Hinton. Improving deep neural networks for lvcsr
+using rectified linear units and dropout. In ICASSP, 2013.
+Juan F. De Freitas. Bayesian methods for neural networks. PhD thesis, Trinity College, University
+of Cambridge, 2003.
+John Duchi, Elad Hazan, and Yoram Singer. Adaptive subgradient methods for online learning and
+stochastic optimization. JMLR, 12:2121–2159, 2011.
+Scott Fahlman and Christian Lebiere. The cascade-correlation learning architecture. In NIPS, 1990.
+Jiashi Feng and Trevor Darrell. Learning the structure of deep convolutional networks. In ICCV,
+2015.
+Michael Figurnov, Aijan Ibraimova, Dmitry Vetrov, and Pushmeet Kohli. Perforatedcnns: Acceleration through elimination of redundant convolutions. In NIPS, 2016.
+Stephen Gallant. Three constructive algorithms for network learning. In Conference of the Cognitive
+Learning Society, 1986.
+Yiwen Guo, Anbang Yao, and Yurong Chen. Dynamic network durgery for efficient dnns. In NIPS,
+2016.
+11
+
+Published as a conference paper at ICLR 2017
+
+Tamir Hazan and Tommi Jaakkola. Steps toward deep kernel methods from infinite neural networks.
+arXiv preprint arXiv:1508.05133, 2015.
+Geoffrey Hinton, Oriol Vinyals, and Jeff Dean. Distilling the knowledge in a neural network. arXiv
+preprint arXiv:1503.02531, 2015.
+Frank Hutter, Holger H. Hoos, and Kevin Leyton-Brown. Sequential model-based optimization for
+general algorithm configuration (extended version). Tech. Rep. TR-2009-01, University of British
+Columbia, Department of Computer Science, 2009.
+Sergey Ioffe and Christian Szegedy. Batch normalization: Accelerating deep network training by
+reducing internal covariate shift. In ICML, 2015.
+Diederik P. Kingma and Jimmy Lei Ba. Adam: A method for stochastic optimization. In ICLR,
+2015.
+Aaron Klein, Stefan Falkner, Jost Tobias Springenberg, and Frank Hutter. Dsd: Dense-sparse-dense
+training for deep neural networks. In ICLR, 2017.
+Jan Larsen, Claus Svarer, Lars Nonboe Andersen, and Lars Kai Hansen. Adaptive regularization in
+neural network modeling. Neural Networks: Tricks of the Trade, 2nd Ed., 7700:111–130, 1998.
+Jelena Luketina, Mathias Berglund, Klaus Greff, and Raiko Tapani. Scalable gradient-based tuning
+of continuous regularization hyperparameters. In ICML, 2016.
+Dougal Maclaurin, David Duvenaud, and Ryan P. Adams. Gradient-based hyperparameter optimization through reversible learning. In ICML, 2015.
+David McKay. A practical bayesian framework for backpropagation networks. Neural Computation,
+4:448–472, 1992.
+Pavlo Molchanov, Stephen Tyree, Tero Karras, Timo Aila, and Jan Kautz. Pruning convolutional
+neural networks for efficient inference. In ICLR, 2017.
+Gaurav Pandey and Ambedkar Dukkipati. Learning by stretching deep networks. In ICML, 2014.
+Adriana Romero, Nicolas Ballas, Samira Ebrahimi Kahou, Antoine Chassang, Carlo Gatta, and
+Yoshua Bengio. Fitnets: Hints for thin deep nets. In ICLR, 2015.
+Andrew Saxe, Pang Wei Koh, Zhenghao Chen, Maneesh Bhand, Bipin Suresh, and Andrew Ng.
+Computing with infinite networks. In ICML, 2011.
+Karen Simonyan and Andrew Zisserman. Very deep convolutional networks for large-scale image
+recognition. In ICLR, 2015.
+Jasper Snoek, Hugo Larochelle, and Ryan P. Adams. Practical bayesian optimization of machine
+learning algorithms. In NIPS, 2012.
+Jasper Snoek, Oren Rippel, Kevin Swersky, Ryan Kiros, Nadathur Satish, Narayanan Sundaram,
+Md. Mostofa Ali Patwary, Prabhat, and Ryan P. Adams. Scalable bayesian optimization using
+deep neural networks. In ICML, 2015.
+Jost Tobias Springenberg, Aaron Klein, Stefan Falkner, and Frank Hutter. Bayesian optimization
+with robust bayesian neural networks. In NIPS, 2016.
+Ilya Sutskever, James Martens, George Dahl, and Geoffrey Hinton. On the importance of initialization and momentum in deep learning. In ICML, 2013.
+Robert Tibshirani. Regression shrinkage and selection via the lasso. Journal of the Royal Statistical
+Society, Series B, 58:267–288, 1996.
+Tijmen Tieleman and Geoffrey Hinton. Lecture 6.5 - rmsprop, coursera: Neural networks for machine learning. 2012.
+Tao Wei, Changhu Wang, Yong Rui, and Chang Wen Chen. Network morphism. In ICML, 2016.
+12
+
+Published as a conference paper at ICLR 2017
+
+Wei Wen, Chunpeng Wu, Wandan Wang, Yiran Chen, and Hai Li. Learning structured sparsity in
+deep neural networks. In NIPS, 2016.
+Christopher K. I. Williams. Computing with infinite networks. In NIPS, 1997.
+Ming Yuan and Yin Lin. Model selection and estimation in regression with grouped variables.
+Journal of the Royal Statistical Society, Series B, 68:49–67, 2006.
+Matthew D. Zeiler. Adadelta: An adaptive learning rate method. arXiv preprint arXiv:1212.5701,
+2012.
+Barret Zoph and Quoc V. Le. Neural architecture search with reinforcement learning. In ICLR,
+2017.
+
+13
+
+Published as a conference paper at ICLR 2017
+
+7
+7.1
+
+A PPENDIX
+P ROOF OF THEOREM 1
+
+First, we restate the theorem formally.
+Theorem 1. For all
+• L, d0 , dL ∈ Z+
+• finite datasets D of points (x, y) with x ∈ Rd0 and y ∈ Y for some set Y
+• sets of nonlinearities {σl : R → R, 1 ≤ l ≤ L} where each σl fulfils the following
+conditions:
+– There exists a function b1,l : R≥0 → R≥0 such that for all S ∈ R≥0 , −S ≤ s ≤ S,
+we have |σl (s)| ≤ b1,l (S) ∗ |s|.
+– It is left- and right-differentiable everywhere.
+– There exists a function b2,l : R≥0 → R≥0 such that for all S ∈ R≥0 , −S ≤ s ≤ S,
+we have |σl← (s)| ≤ b2,l (S) and |σl→ (s)| ≤ b2,l (S), where the superscripts indicate
+directional derivatives.
+• error functions e : (RdL × Y ) → R that fulfils the following conditions:
+– It is non-negative everywhere.
+– It is differentiable with respect to its first argument everywhere.
+– There exists a function b3 : R≥0 → R≥0 such that for all S ∈ R≥0 , v ∈ RdL and
+y ∈ Y , we have e(v, y) ≤ S =⇒ || de(v,y)
+dv ||∞ ≤ b3 (S)
+• λ > 0 and 1 ≤ p < ∞
+• Ω ∈ {Ωin , Ωout }
+we have that
+E(d, W) =
+
+1
+|D|
+
+X
+
+e(f (W, x), y) + Ω(W, λ, p)
+
+(4)
+
+(x,y)∈D
+
+attains a global minimum.
+Most commonly used nonlinearities are admissible under this theorem as long as σ(0) = 0, i.e.
+the sigmoid non-linearity is not admissible, but the tanh non-linearity is. Note that nonlinearities,
+away from zero, are allowed to grow at an almost arbitrary pace. For example, polynomial or even
+exponential nonlinearities are possible. Note that the first condition on nonlinearities is technically
+implied by the other two as long as σ(0) = 0, though we will not prove this.
+The conditions for the error function cover the two most popular choices: cross-entropy coupled
+with softmax (as in Figure 1) - and the square of the `2 distance.
+We will prove this theorem through a sequence of lemmas. Throughout this process, all inputs to
+the main theorem are considered fixed and fulfilling their respective conditions.
+Lemma 1. Theorem 1 holds if d is fixed.
+I.e. in the parametric case, 4 attains a global minimum.
+Proof. Let d be fixed. Let B = E(d, 0), where 0 is the value of W of dimensionality d where all
+individual weights are set to zero. Then let WB be the space of all W of dimensionality d which
+have at least one individual weight with absolute value greater than B
+λ . Clearly, E(d, W) > B for
+all W ∈ WB . Since Rd \WB is compact and E is continuous, there exists a point Wmin that is a
+minimum of E inside Rd \WB . Further, Rd \WB contains at least one point, namely 0, for which
+14
+
+Published as a conference paper at ICLR 2017
+
+E ≤ B, so a minimum within Rd \WB is indeed a global minimum, the existence of which was
+required.
+Now, some definitions:
+• We call a parameter value (d, W) a local minimum of E iff it is a local minimum in its
+second component, W.
+• We call a local minimum of E B-locally minimal for some B ∈ R iff the value of E at that
+minimum does not exceed B.
+• We call the proper dimensionality of W the dimensionality obtained when eliminating
+from W all units which have a zero fan-in or a zero fan-out or both.
+• We call a parameter value (d, W) proper if d is the proper dimensionality of W. We also
+call a local minimum with such a parameter value proper.
+• Denote (d1 , .., dl ) by d≤l and (W1 , .., Wl ) by W≤l .
+• D = {(x(0) , y (0) ), (x(1) , y (1) ), .., (x(N ) , y (N ) )}
+• We denote intermediate computations of the neural network f (W, x) as follows:
+x0 := x
+zl := xl−1 Wl
+xl := σl .(zl )
+f (W, x) = xL
+
+1≤l≤L
+1≤l≤L
+
+(5)
+(6)
+(7)
+(8)
+
+• We denote the gradients of e(f (W, x), y), when they are defined, as follows:
+de(f (W, x), y)
+dxl
+de(f (W, x), y)
+hl :=
+dzl
+de(f (W, x), y)
+Gl :=
+dWl
+gl :=
+
+0≤l≤L
+
+(9)
+
+1≤l≤L
+
+(10)
+
+1≤l≤L
+
+(11)
+(n)
+
+• Vector and matrix indeces are written in brackets. For example, the j’th component of zl
+(n)
+is denoted by zl (j).
+
+• We denote by square brackets a vector and by its subscript the index the vector is over, e.g.
+[vi ]i is a vector over index i.
+Lemma 2. Under the conditions of theorem 1 and the additional condition that the σl are differentiable everywhere, if Ω is the fan-in regularizer, then for all B, the set of values of d for which there
+exist proper B-local minima is bounded.
+Lemma 3. Under the conditions of theorem 1 and the additional condition that the σl are differentiable everywhere, if Ω is the fan-out regularizer, then for all B, the set of values of d for which
+there exist proper B-local minima is bounded.
+Lemmas 2 and 3 are the core segments of the overall proof. Here we show that that very large nets
+have no “good” local minima.
+Proof of lemma 2. Throughout this proof, we consider B fixed.
+Claim 1a: There exist constants Bx,l , 0 ≤ l ≤ L, such that at all proper B-local minima, for all
+(n)
+1 ≤ n ≤ N , for all 0 ≤ l ≤ L, we have ||xl ||1 ≤ Bx,l .
+Claim 1b: There exist constants Bz,l , 1 ≤ l ≤ L, such that at all proper B-local minima, for all
+(n)
+1 ≤ n ≤ N , for all 1 ≤ l ≤ L, we have ||zl ||1 ≤ Bz,l .
+15
+
+Published as a conference paper at ICLR 2017
+
+Claim 1c: There exist constants Bdσ,l , 1 ≤ l ≤ L, such that at all proper B-local minima, for all
+(n)
+1 ≤ n ≤ N , for all 1 ≤ l ≤ L, for all 1 ≤ j ≤ dl , we have |σ 0 (zl (j))| ≤ Bdσ,l .
+First, we notice that it is sufficient to prove the bounds exist for a specific datapoint. The uniform
+bound across all datapoints is then simply the maximum of the individual bounds. Denote by (x, y)
+an arbitrary fixed datapoint throughout the proof of the above claims. Also, notice that the claims
+are trivially true if there are no proper B-local minima. Hence, throughout the proof of the claims,
+we assume there exists at least one such minimum.
+We will prove the claims jointly by induction. The order of the induction follows the order of
+computation of the neural network. Our starting case will be x0 , followed by z1 , f10 and x1 etc.
+The starting case is obvious as x0 = x is fixed and does not depend on the parameter (d, W). Hence
+we can choose Bx,0 = ||x||1 .
+Now assume we have Bx,l−1 such that sup(d,W)proper B-locally minimal ||xl−1 ||1 ≤ Bx,l−1 . Then:
+
+sup
+
+||zl ||1
+
+(12)
+
+||xl−1 Wl ||1
+
+(13)
+
+(d,W)proper B-locally minimal
+
+=
+
+sup
+(d,W)proper B-locally minimal
+
+≤
+=
+
+||xl−1 Wl ||1
+
+sup
+(d,W),||xl−1 ||1 ≤Bx,l−1 ,λ
+
+sup(
+
+(14)
+
+Pdl
+
+j=1 ||[Wl (i,j)]i ||p ≤B
+
+sup
+
+(
+
+||xl−1 Wl ||1 ))
+
+sup
+
+(15)
+
+d≤l W ,λ Pdl ||[W (i,j)] || ≤B W<l ,||xl−1 ||1 ≤Bx,l−1
+i p
+l
+l
+j=1
+
+≤
+
+sup(
+
+sup
+
+(
+
+||uT Wl ||1 ))
+
+sup
+
+(16)
+
+d≤l W ,λ Pdl ||[W (i,j)] || ≤B u,dim(u)=dl−1 ,||u||1 ≤Bx,l−1
+i p
+l
+l
+j=1
+
+=
+
+sup(
+d≤l W ,λ
+l
+
+=
+
+(
+
+sup
+
+sup(
+
+Pdl
+
+j=1
+
+sup
+
+dl
+X
+
+sup
+
+|uT [Wl (i, j)]i |))
+
+(17)
+
+||[Wl (i,j)]i ||p ≤B u,dim(u)=dl−1 ,||u||1 ≤Bx,l−1 j=1
+
+(
+
+(
+
+sup
+
+dl
+X
+
+sup
+
+|uT [Wl (i, j)]i |)))
+(18)
+
+d≤l c ≥0,Pdl c ≤ B Wl ,||[Wl (i,j)]i ||p =cj u,dim(u)=dl−1 ,||u||1 ≤Bx,l−1 j=1
+j
+j=1 j
+λ
+
+≤
+
+sup(
+
+dl
+X
+
+(
+
+(
+
+sup
+
+sup
+
+|uT [Wl (i, j)]i |)))
+(19)
+
+Pdl
+Wl ,||[Wl (i,j)]i ||p =cj u,dim(u)=dl−1 ,||u||1 ≤Bx,l−1
+cj ≤ B
+cj ≥0, j=1
+λ j=1
+
+d≤l
+
+=
+
+sup
+
+sup(
+
+sup
+
+dl
+X
+
+(
+
+sup
+
+(
+
+sup
+
+|uT v|)))
+
+(20)
+
+|uT v|))
+
+(21)
+
+d≤l c ≥0,Pdl c ≤ B j=1 v,dim(v)=dl−1 ,||v||p =cj u,dim(u)=dl−1 ,||u||1 ≤Bx,l−1
+j
+j=1 j
+λ
+
+≤ sup(
+
+sup
+
+dl
+X
+
+(
+
+sup
+
+Pdl
+v,dim(v)=dl−1 ,||v||∞ ≤cj ,u,dim(u)=dl−1 ,||u||1 ≤Bx,l−1
+cj ≥0, j=1
+cj ≤ B
+λ j=1
+
+d≤l
+
+≤ sup(
+
+sup
+
+dl
+X
+
+cj Bx,l−1 )
+
+(22)
+
+d≤l c ≥0,Pdl c ≤ B j=1
+j
+j=1 j
+λ
+
+≤ sup
+d≤l
+
+=
+
+BBx,l−1
+λ
+
+(23)
+
+BBx,l−1
+λ
+
+(24)
+
+A line-by-line explanation of the above is as follows:
+13 Replacing zl by its definition.
+16
+
+Published as a conference paper at ICLR 2017
+
+14 Relaxing the conditions on (d, W) by replacing proper B-local minimality by two conditions that proper B-local minimality implies. The first condition is the induction hypothesis. The second condition follows because E ≤ B and so specifically Ωin (W) ≤ B and
+so specifically Ωin (Wl ) ≤ B
+15 Breaking up the supremum into three stages. We drop components of d and W that are
+immaterial to the value of the objective of the supremum.
+16 We further relax the innermost sup by no longer requiring that xl−1 be the intermediate
+output of some neural network but an arbitrary vector of fixed size and limited length.
+W<l then becomes immaterial.
+17 Replacing the `1 norm by its definition.
+18 We fix the length of each fan-in in the second sup and add an additional sup over these
+lengths.
+19 Jensen’s inequality
+20 Simplifying the notation by replacing rows of Wl by vector v.
+21 Relaxing the conditions on v.
+22 Using an elementary property of norms.
+23 obvious
+24 obvious
+And therefore, we may choose Bz,l =
+
+BBx,l−1
+λ
+
+as required.
+
+Now consider the other inductive steps. Assuming we have a valid Bz,l , we have at all proper Blocal minima |σl0 (zl (j))| ≤ b2,l (Bz,l ) because |zl (j)| ≤ ||zl ||1 ≤ Bz,l and hence we can choose
+Bdσ,l = b2,l (Bz,l ) as required. Finally, at all proper B-local minima, ||xl ||1 = ||σl .(zl )||1 =
+Pdl
+Pdl
+j=1 |σl (zl (j))| ≤
+j=1 b1,l (Bz,l )|zl (j)| = b1,l (Bz,l )||zl ||1 ≤ b1,l (Bz,l )Bz,l and so we can
+choose Bx,l = b1,l (Bz,l )Bz,l . This completes the proof of claims 1(a)-(c).
+Claim 2a: There exist constants Bg,l , 0 ≤ l ≤ L, such that at all proper B-local minima, for all
+(n)
+1 ≤ n ≤ N , for all 0 ≤ l ≤ L, for all 1 ≤ i ≤ dl , we have |gl (i)| ≤ Bg,l .
+Claim 2b: There exist constants Bh,l , 1 ≤ l ≤ L, such that at all proper B-local minima, for all
+(n)
+1 ≤ n ≤ N , for all 1 ≤ l ≤ L, for all 1 ≤ i ≤ dl , we have |hl (i)| ≤ Bh,l .
+Again, we can restrict our attention to a single datapoint and again, we will prove these claims
+by induction, but going backwards along the flow of the gradient. The starting case is gL . At all
+proper B-local minima, E ≤ B, so specifically e(xL , y) ≤ B and therefore we have ||gL ||∞ =
+L ,y)
+|| de(x
+dxL ||∞ ≤ b3 (B) and so specifically |gL (i)| ≤ b3 (B) and so we can choose Bg,L = b3 (B) as
+required.
+Now we assume we have a valid Bg,l . At all proper B-local minima we have |hl (i)| = | dzde
+|=
+l (i)
+dxl (i)
+| dxde
+| = |gl (i)||σ 0 (zl (i))| ≤ Bg,l Bdσ,l . Therefore we can choose Bh,l = Bg,l Bdσ,l as
+l (i) dzl (i)
+required.
+Pdl
+de
+de dzl (j)
+Finally, assume we have Bh,l . Then we have |gl−1 (i)| = | dxl−1
+j=1 dzl (j) dxl (i) | =
+(i) | = |
+Pdl
+Pdl
+Pdl
+≤
+| j=1 hl (j)Wl (i, j)|
+≤
+≤
+Bh,l j=1 |Wl (i, j)|
+j=1 |hl (j)||Wl (i, j)|
+Pdl
+Bh,l j=1 ||[Wl (i, j)]i ||p ≤ Bh,l B, so we can choose Bg,l−1 = Bh,l B as required.
+
+Claim 3: There is a constant B2 , such that at all proper B-local minima, for all 1 ≤ l ≤ L, for all
+PN
+(n)
+1 ≤ j ≤ dl , we have n=1 |gl (j)| ≥ B2 .
+At any proper parameter value, all fan-ins are non-zero. Therefore Ω is differentiable with respect to W, and therefore E is differentiable with respect to W. Hence, at any proper B17
+
+Published as a conference paper at ICLR 2017
+
+local minimum, we have ∇W E = 0, so in particular for any l, j we have d[WdE
+=
+l (i,j)]i
+PN
+PN
+dΩ
+1
+1
+de
+de
+p
+0, so N n=1 d[Wl (i,j)]i = − d[Wl (i,j)]i and so specifically || N n=1 d[Wl (i,j)]i || p−1
+=
+p
+p−1 can take the value ∞. Further analyzing the right hand side, we have
+d(λ||[W (i,j)] || )
+p
+|| d[Wll(i,j)]ii p || p−1
+= λ. Therefore, at all proper B-local minima we have:
+
+p , where
+|| p−1
+|| d[WdΩ
+l (i,j)]i
+p
+|| d[WdΩ
+|| p−1
+=
+l (i,j)]i
+
+=
+=
+=
+=
+≤
+
+=
+
+≤
+=
+≤
+
+λ
+1 X
+de
+||
+|| p
+N n d[Wl (i, j)]i p−1
+dxl (j)
+1 X de
+||
+|| p
+N n dxl (j) d[Wl (i, j)]i p−1
+1 X
+dxl (j) dzl (j)
+||
+gl (j)
+|| p
+N n
+dzl (j) d[Wl (i, j)]i p−1
+1 X
+p
+||
+gl (j)σl0 (zl (j))xl−1 || p−1
+N n
+1 X
+||
+gl (j)σl0 (zl (j))xl−1 ||1
+N n
+dl−1
+1 X X
+|
+gl (j)σl0 (zl (j))xl−1 (i)|
+N i=1 n
+dl−1
+1 XX
+|gl (j)||σl0 (zl (j))||xl−1 (i)|
+N i=1 n
+1 X
+|gl (j)||σl0 (zl (j))|||xl−1 ||1
+N n
+1 X
+|gl (j)|Bdσ,l Bx,l−1
+N n
+
+Hence, we can choose B2 = max1≤l≤L
+we have omitted all
+
+(n)
+
+λN
+Bdσ,l Bx,l−1
+
+(25)
+(26)
+(27)
+(28)
+(29)
+(30)
+
+(31)
+
+(32)
+(33)
+(34)
+
+as required. Note that in the above equations,
+
+superscripts for brevity.
+
+Claim 4: There exist constants Dl , 1 ≤ l ≤ L such that at all proper B-local minima, for all
+1 ≤ l ≤ L, we have dl ≤ Dl .
+Note that this claim is tantamount to proving the hypothesis of the Lemma.
+We will prove this by induction going backwards. Since dL is fixed, we can simply pick DL = dL .
+Now assume we have a valid Dl+1 . Then at all proper B-local minima we have
+
+≤
+
+dl B2
+dl
+N X
+X
+
+(35)
+(n)
+
+|gl (i)|
+
+(36)
+
+n=1 i=1
+
+=
+
+dl d
+N X
+l+1
+X
+X
+(n)
+|
+Wl+1 (i, j)hl+1 (j)|
+n=1 i=1
+
+≤
+
+(37)
+
+j=1
+
+dl d
+N X
+l+1
+X
+X
+
+(n)
+
+|Wl+1 (i, j)hl+1 (j)|
+
+n=1 i=1 j=1
+
+18
+
+(38)
+
+Published as a conference paper at ICLR 2017
+
+Therefore, by the box principle, there exists an n0 and j 0 such that
+dl B2
+dl+1 N . So further, we have
+
+Pdl
+
+i=1
+
+dl B2
+dl+1 N
+≤
+
+dl
+X
+
+(n0 )
+
+|Wl+1 (i, j 0 )hl+1 (j 0 )| ≥
+
+(39)
+(n0 )
+
+|Wl+1 (i, j 0 )hl+1 (j 0 )|
+
+(40)
+
+i=1
+
+≤
+
+(n0 )
+
+|hl+1 (j 0 )|
+
+dl
+X
+
+|Wl+1 (i, j 0 )|
+
+(41)
+
+i=1
+
+≤ Bh,l+1 ||[Wl+1 (i, j 0 )]i ||1
+p−1
+p
+
+≤ Bh,l+1 dl
+
+p−1
+p
+
+≤ Bh,l+1 dl
+And therefore, dl ≤ (
+pletes the proof.
+
+BBh,l+1 N dl+1 p
+)
+B2
+
+(42)
+
+||[Wl+1 (i, j 0 )]i ||p
+
+(43)
+
+B
+
+(44)
+
+and so we can choose Dl = (
+
+BBh,l+1 N Dl+1 p
+) ,
+B2
+
+which com-
+
+For brevity, we will only give a summary of the proof of lemma 3, as it is very similar to the proof
+of lemma 2.
+Sketch of proof of lemma 3. As in the previous proof, we consider B fixed.
+Claim 1a: There exist constants Bx,l , 0 ≤ l ≤ L, such that at all proper B-local minima, for all
+(n)
+1 ≤ n ≤ N , for all 0 ≤ l ≤ L, for all 1 ≤ j ≤ dl , we have |xl (j)| ≤ Bx,l .
+Claim 1b: There exist constants Bz,l , 1 ≤ l ≤ L, such that at all proper B-local minima, for all
+(n)
+1 ≤ n ≤ N , for all 1 ≤ l ≤ L, for all 1 ≤ j ≤ dl , we have |zl (j)| ≤ Bz,l .
+Claim 1c: There exist constants Bdσ,l , 1 ≤ l ≤ L, such that at all proper B-local minima, for all
+(n)
+1 ≤ n ≤ N , for all 1 ≤ l ≤ L, for all 1 ≤ j ≤ dl , we have |σ 0 (zl (j))| ≤ Bdσ,l .
+As in the previous proof, we proceed by induction along the order of feed-forward execution of
+the neural network. However, we use the arguments we used for Claims 2(a)-(b) in the previous
+proof. This is because the fan-out regularizer “appears” like a fan-in regularizer when the direction
+of signal flow is reversed.
+Claim 2a: There exist constants Bg,l , 0 ≤ l ≤ L, such that at all proper B-local minima, for all
+(n)
+1 ≤ n ≤ N , for all 0 ≤ l ≤ L, we have ||gl ||1 ≤ Bg,l .
+Claim 2b: There exist constants Bh,l , 1 ≤ l ≤ L, such that at all proper B-local minima, for all
+(n)
+1 ≤ n ≤ N , for all 1 ≤ l ≤ L, we have ||hl ||1 ≤ Bh,l .
+As in the previous proof, we proceed by induction along the flow of the gradient. However, we use
+the arguments we used for Claims 1(a)-(c) in the previous proof.
+Claim 3: There is a constant B2 , such that at all proper B-local minima, for all 0 ≤ l ≤ L − 1, for
+PN
+(n)
+all 1 ≤ j ≤ dl , we have n=1 |xl (j)| ≥ B2 .
+Claim 4: There exist constants Dl , 0 ≤ l ≤ L − 1 such that at all proper B-local minima, for all
+0 ≤ l ≤ L − 1, we have dl ≤ Dl .
+The arguments mirror those of Claim 3 and 4 from the previous proof, but with the role of activation
+and gradient reversed. Also, here, Claim 4 is proved by induction along the order of feed-forward
+execution.
+19
+
+Published as a conference paper at ICLR 2017
+
+Lemma 4. Under the conditions of theorem 1, for all B, the set of values of d for which there exist
+proper B-local minima is bounded.
+This is the stronger version of the previous lemmas where we only use directional differentiability of
+the σl instead of actual differentiability. The proof is a rather tedious extension of the previous two
+proofs and not very instructive, which is why we broke out the differential case as its own lemmas.
+Following this lemma, we immediately prove the main theorem.
+
+Proof. We will describe how to amend the proof of lemma 2. The proof of lemma 3 can be amended
+similarly.
+First, we define a signature S with dimensionality d as a binary sequence of vectors. Then, for all d,
+x0 ∈ Rd0 , W0 of dimensionality d and S of dimensionality d, we define a linearized neural network
+0 0
+that is linearized at point x0 with weights W0 and signature S f [S,W ,x ] as follows: First, obtain x0l
+and zl0 for 1 ≤ l ≤ L by evaluating f (W0 , x0 ) as usual. Then, for each σl used in f , define a vector of
+[S,W0 ,x0 ]
+[S,W0 ,x0 ]
+functions σl
+, where each element is a linear function with σl
+(j)(zl0 (j)) = σl (zl0 (j))
+dσ
+
+[S,W0 ,x0 ]
+
+(j)(s)
+
+dσ
+
+[S,W0 ,x0 ]
+
+(j)(s)
+
+and with l ds
+= σl← (zl0 (j)) if Sl (j) = 0 and with l ds
+= σl→ (zl0 (j)) if
+[S,W0 ,x0 ]
+Sl (j) = 1. Finally, we obtain f
+from f by, for each 1 ≤ l ≤ L, replacing σl that is applied
+[S,W0 ,x0 ]
+elementwise with σl
+where each component is applied to the respective component of zl .
+In plain language, we linearize a neural network at a point by evaluating it at that point and replacing each nonlinearity by a straight line as indicated by the value and directional derivative of that
+nonlinearity wherever it is evaluated, where the direction of the derivative used is governed by S.
+0
+
+0
+
+Similarly, define a partially linearized neural network f [S≥l ,W ,x ] in the same fashion, except only
+0 0
+layers l and above are linearized. Finally, define a partially linearized neural network f [S≥l,i ,W ,x ]
+in the same fashion, except only layers l and above as well as unit i in layer l − 1 are linearized.
+e is composed of functions that are differentiable or directionally differentiable with respect to W,
+so e itself is directionally differentiable with respect to W. Specifically, let us analyze the directional
+derivative of e with respect to some perturbation of WL−1 .
+
+∇δWL−1 e(f (W, x), y)
+= ∇δWL−1 e(σL .(σL−1 .(xL−2 WL−1 )WL ), y)
+= ∇δxL =∇δWL−1 σL .(σL−1 .(xL−2 WL−1 )WL ) e(xL , y)
+=
+=
+
+de
+∇δWL−1 (σL .(σL−1 .(xL−2 WL−1 )WL ))T
+dxL
+dL
+X
+de
+(j)∇δWL−1 (σL .(σL−1 .(xL−2 WL−1 )WL ))(j)
+dx
+L
+j=1
+
+(45)
+(46)
+(47)
+(48)
+(49)
+
+=
+
+dL
+X
+de
+(j)∇δzL =∇δWL−1 [σL−1 .(xL−2 WL−1 )WL ] (σL .(zL ))(j)
+dx
+L
+j=1
+
+(50)
+
+=
+
+dL
+X
+de
+∗
+(j)σL
+(zL (j))∇δWL−1 (σL−1 .(xL−2 WL−1 )WL )(j)
+dx
+L
+j=1
+
+(51)
+
+=
+
+dL−1
+dL
+X
+X
+de
+∗
+(j)σL
+(zL (j))
+WL (i, j)∇δWL−1 (σL−1 .(xL−2 WL−1 ))(i)
+dxL
+j=1
+i=1
+
+(52)
+
+=
+
+(
+
+de
+∗
+. ∗ σL
+.(zL ))WLT ∇δWL−1 (σL−1 .(xL−2 WL−1 ))T
+dxL
+20
+
+(53)
+
+Published as a conference paper at ICLR 2017
+
+dL−1
+
+=
+
+X
+
+((
+
+de
+∗
+∗
+. ∗ σL
+.(zL ))WLT )(j)σL−1
+(zL−1 (j))∇δWL−1 (xL−2 WL−1 )(j)
+dxL
+
+((
+
+dL−2
+X
+de
+∗
+∗
+. ∗ σL
+.(zL ))WLT )(j)σL−1
+(zL−1 (j))
+xL−2 (i)∇δWL−1 WL−1 (i, j) (55)
+dxL
+i=1
+
+((
+
+dL−2
+X
+de
+∗
+∗
+. ∗ σL
+.(zL ))WLT )(j)σL−1
+(zL−1 (j))
+xL−2 (i)δWL−1 (i, j)
+dxL
+i=1
+
+j=1
+dL−1
+
+=
+
+X
+j=1
+dL−1
+
+=
+
+X
+j=1
+
+=
+
+((((
+
+de
+∗
+∗
+. ∗ σL
+.(zL ))WLT ). ∗ σL−1
+.(zL−1 ))T xL−2 ).δWL−1 (i, j)
+dxL
+
+(54)
+
+(56)
+(57)
+
+Here, a ∗ superscript is a “wildcard” that can stand for a left or a right derivative. When combined
+with the .() elementwise operation, it can mean a different derivative (left or right) for each element.
+We use the chain rule for directional derivatives (lines 47, 50 and 54), the linearity of the directional
+derivative (lines 52 and 55), the fact that the directional derivative of a differentiable function is the
+dot product of its gradient with the perturbation (line 48), and the fact that the directional derivative
+of a left- and right-differentiable scalar function is either the product of its left derivative with the
+perturbation or the product of its right derivative with the perturbation (lines 51 and 54).
+We notice that the final expression in line 57 is the same expression we would obtain if the σl were
+differentiable, except with a ∗ instead of a 0 superscript. Now the linearized neural networks come
+into play. We can choose a signature S that matches the wildcards in the above directional derivative
+[S,W,x]
+(W,x),y)
+.δWL−1 , because the forward evaluation of
+and get ∇δWL−1 e(f (W, x), y) = de(f dWL−1
+f [S,W,x] and f are identical at x and the backward evaluation picks out the correct left and right
+derivatives. In fact, it is sufficient to choose a partially linearized network with signature S≥L−1 to
+achieve the above identity.
+So far, we have investigated the directional derivative with respect to δWL−1 . However, the same
+arguments hold for all 1 ≤ l ≤ L. We can expand ∇δWl e(f (W, x), y) in the same way, except
+we repeat the transformation from line 48 to line 53 L − l times. Hence, we have what we will call
+claim 0.
+Claim 0: For all (d, W), for all x ∈ Rd0 , for all 1 ≤ l ≤ L, for all δWl , we can choose a signature
+S or a partial signature S≥l , such that ∇δWl e(f (W, x), y) =
+
+de(f [S,W,x] (W,x),y)
+.δWl .
+dWl
+
+Now, we refer back to the proof of lemma 2. Claims 1(a)-(c) hold as before, except in Claim 1(c)
+(n)
+(n)
+(n)
+we replace |σ 0 (zl (j))| ≤ Bdσ,l with |σ ← (zl (j))| ≤ Bdσ,l and |σ → (zl (j))| ≤ Bdσ,l . Further,
+note that claims 1(a)-(c) also hold for neural networks that are linearized at the respective B-local
+minimum and datapoint at which they are evaluated.
+Claims 2(a)-(b) are changed as follows:
+Claim 2a: There exist constants Bg,l , 0 ≤ l ≤ L, such that at all proper B-local minima, for all
+1 ≤ n ≤ N , for all 0 ≤ l ≤ L, for all 1 ≤ i ≤ dl , for all signatures S or partial signatures S≥l+1 of
+(n)[S,W,x(n) ]
+
+matching dimensionality we have |gl
+
+(i)| ≤ Bg,l .
+
+Claim 2b: There exist constants Bh,l , 1 ≤ l ≤ L, such that at all proper B-local minima, for all
+1 ≤ n ≤ N , for all 1 ≤ l ≤ L, for all 1 ≤ i ≤ dl , for all signatures S or partial signatures S≥l+1,i
+(n)[S,W,x(n) ]
+
+of matching dimensionality we have |hl
+
+(i)| ≤ Bh,l .
+
+The proof is as before, where derivatives of the σl are again replaced by a left or right derivative as
+indicated by the signature.
+Claim 3 and its proof change somewhat.
+Claim 3: There exists a constant B2 , such that at all proper B-local minima, for all 1 ≤ l ≤ L, for
+PN P
+P
+(n)[S≥l+1 ,W,x(n) ]
+all 1 ≤ j ≤ dl , we have n=1 S≥l+1 |gl
+(j)| ≥ B2 , where S≥l+1 is the sum
+over all partial signatures.
+21
+
+Published as a conference paper at ICLR 2017
+
+At all proper B-local minima, we have for all l, i and j:
+
+≤
+
+0
+∇δWl (i,j) E
+
+=
+
+∇δWl (i,j) (
+
+=
+
+N
+1 X
+∇δWl (i,j) e(f (W, x(n) ), y (n) ) + ∇δWl (i,j) Ω(Wl )
+N n=1
+
+=
+
+N
+1 X de(f [S≥l
+N n=1
+
+(58)
+(59)
+
+N
+1 X
+e(f (W, x(n) ), y (n) ) + Ω(W))
+N n=1
+
+i,j,n
+
+(60)
+
+(61)
+
+,W,x(n) ]
+
+(W, x(n) ), y (n) )
+dΩ(Wl )
+δW (i, j) +
+δW (i, j)
+dWl (i, j)
+dWl (i, j)
+
+(62)
+
+Here, ∇δWl (i,j) stands for the directional derivative with respect to a change in the scalar
+value Wl (i, j). Because this is a special case of a directional derivative with respect to δWl ,
+we can use Claim 0 to obtain line 62. Note that to use Claim 0, we have to choose a
+different partial signature for each value of i, j, and n, which we indicate by superscript.
+Specifically, we now choose δWl (i, j) = −1 and corresponding signatures. Then, for all
+i,j,n
+[S
+,W,x(n) ]
+PN
+≥l
+(W,x(n) ),y (n) )
+dΩ(Wl )
+(−1) + dW
+(−1), and
+l, i and j we have 0 ≤ N1 n=1 de(f
+dWl (i,j)
+l (i,j)
+i,j,n
+(n)
+[S
+,W,x
+]
+PN
+≥l
+(W,x(n) ),y (n) )
+dΩ(Wl )
+dΩ(Wl )
+hence − N1 n=1 de(f
+≥ dW
+. Since dW
+≥ 0, we have
+dWl (i,j)
+l (i,j)
+l (i,j)
+i,j,n
+(n)
+[S
+,W,x
+]
+(n)
+(n)
+P
+≥l
+N
+(W,x ),y
+)
+dΩ(Wl )
+| ≥ | dW
+|. So in particular for all l and j we have
+| N1 n=1 de(f
+dWl (i,j)
+l (i,j)
+i,j,n
+(n) ]
+[S
+,W,x
+PN
+≥l
+(W,x(n) ),y (n) )
+dΩ(Wl )
+p
+p
+|| N1 [ n=1 de(f
+]i || p−1
+≥ ||[ dW
+]i || p−1
+= λ. So further we have:
+dWl (i,j)
+l (i,j)
+
+λ
+
+(63)
+N
+X
+
+de(f
+1
+[
+N n=1
+
+[Si,j,n
+,W,x(n) ]
+≥l
+
+(W, x(n) ), y (n) )
+p
+]i || p−1
+dWl (i, j)
+
+≤
+
+||
+
+=
+
+N
+,W,x(n) ]
+[Si,j,n ,W,x(n) ] 0 (n)
+1 X (n)[Si,j,n
+(n)
+≥l
+p
+||[
+gl
+(j)(σl ≥l
+) (zl (j))xl−1 (i)]i || p−1
+N n=1
+
+(65)
+
+≤
+
+N
+,W,x(n) ]
+[Si,j,n ,W,x(n) ] 0 (n)
+1 X (n)[Si,j,n
+(n)
+≥l+1
+p
+||[
+|gl
+(j)||(σl ≥l
+) (zl (j))||xl−1 (i)|]i || p−1
+N n=1
+
+(66)
+
+≤
+
+N
+X
+(n)[Si,j,n
+,W,x(n) ]
+1
+(n)
+≥l+1
+p
+Bdσ,l ||[
+|gl
+(j)||xl−1 (i)|]i || p−1
+N
+n=1
+
+(67)
+
+≤
+
+N X
+X
+1
+(n)[S≥l+1 ,W,x(n) ]
+(n)
+p
+Bdσ,l ||[
+|gl
+(j)||xl−1 (i)|]i || p−1
+N
+n=1
+
+(68)
+
+N X
+X
+1
+(n)[S≥l+1 ,W,x(n) ]
+(n)
+Bdσ,l ||[
+|gl
+(j)||xl−1 (i)|]i ||1
+N
+n=1
+
+(69)
+
+dl−1 N
+X X X (n)[S≥l+1 ,W,x(n) ]
+1
+(n)
+Bdσ,l
+|gl
+(j)||xl−1 (i)|
+N
+i=1 n=1
+
+(70)
+
+N X
+X
+1
+(n)[S≥l+1 ,W,x(n) ]
+Bdσ,l Bx,l−1
+|gl
+(j)|
+N
+n=1
+
+(71)
+
+(64)
+
+S≥l+1
+
+≤
+
+S≥l+1
+
+=
+
+S≥l+1
+
+≤
+
+S≥l+1
+
+22
+
+Published as a conference paper at ICLR 2017
+
+(n)
+At line 65, we use the chain rule. Note that x and z do not need the [Si,j,n
+] superscript
+≥l , W, x
+i,j,n
+
+because the forward evaluation of f (W, x(n) ) and f [S≥l
+can set B2 = max1≤l≤L Bdσ,lλN
+Bx,l−1 , as required.
+
+,W,x(n) ]
+
+(W, x(n) ) are equivalent. So, we
+
+Finally, claim 4 is the same as in Lemma 2. The only difference in the proof is that when we
+invoke the box principle, we choose a specific signature S0≥l+1 in addition to n0 and j 0 such that
+0
+0
+(n)
+Pdl
+B2
+0 (n )[S≥l+1 ,W,x ] 0
+|W
+(i,
+j
+)h
+(j )| ≥ d N 2dDll+1
+l+1
++..+DL . This is possible because of the
+i=1
+l+1
+l+1
+
+induction hypothesis, which bounds the number of partial signatures S≥l+1 by 2Dl+1 +..+DL . Hence
+we can set Dl = (
+
+BBh,l+1 N Dl+1 2Dl+1 +..+DL p
+) ,
+B2
+
+which completes the proof.
+
+Proof of theorem 1. Clearly, E is bounded below by zero. Therefore, it has a greatest lower bound,
+which we call B. Denote (t, t, .., t) by dt . If d is assumed to be fixed at dt , E has a global minimum
+by lemma 1. Let Wt denote one such global minimum. Let Et denote the value of E at (dt , Wt ).
+Now let d0 and d00 be two arbitrary values of d with d0l ≥ d00l for all 0 ≤ l ≤ L. (Denote such a
+relation by d0 ≥ d00 .) Then, any value that E can attain with d = d00 it can attain with d = d0
+because we can change any d00 -dimensional value of W into a d0 -dimensional value by adding
+d0l − d00l units with zero fan-in and fan-out to each layer without changing E. In particular, this
+implies that (E)t is a decreasing sequence because dt+1 ≥ dt . Since it is also bounded below by
+B, it converges. Call its limit C.
+Assume C > B. Then there exists some (d0 , W0 ) with E(d0 , W0 ) < C. However, any value that E
+can attain with d = d0 it can attain with d = dt0 where t0 = maxl d0l , because dt0 ≥ d0 . Therefore
+C > E(d0 , W0 ) ≥ Et0 ≥ C. Contradiction. Therefore, C = B.
+Now assume that for some t, Wt has a unit that has zero fan-in but not zero fan-out, or vice versa.
+Then by setting the non-zero fan to zero, the output of f is unchanged for all x ∈ Rd0 and the
+value of Ω is reduced. Therefore, we reduce E, which contradicts the fact that (dt , Wt ) is a global
+minimum of E when d is fixed to dt . Therefore, all units in Wt that have zero fan-in also have zero
+fan-out, and vice versa.
+Let dproper
+be the proper dimensionality of Wt and Wtproper be the result of removing all units with
+t
+zero fan-in or fan-out from Wt . Indeed, as we have shown, all units removed had both zero fan-in
+, Wtproper ) is not a local minimum of E. Then there exists a W0 of
+and fan-out. Assume (dproper
+t
+proper
+dimensionality dt
+with E(dproper
+, W0 ) < E(dproper
+, Wtproper ). When we add the zero units that
+t
+t
+proper
+0
+were removed from Wt to obtain Wt
+back into W , we obtain another weight parameter value
+we call W00 . Since E is invariant under the addition and removal of units with both zero fan-in and
+zero fan-out, we have both E(dproper
+, W0 ) = E(dt , W00 ) and E(dproper
+, Wtproper ) = E(dt , Wt ).
+t
+t
+00
+Therefore, we have E(dt , W ) < E(dt , Wt ), which contradicts that Wt is a global minimum of
+E when d is fixed to dt . Therefore, (dproper
+, Wtproper ) is a local minimum of E. In particular, it is a
+t
+proper Et -local minimum of E and therefore a proper E0 -local minimum of E.
+From lemma 4, we know that the set of proper E0 -local minima is bounded. Hence, the set
+{dproper
+, t ≥ 0} is bounded, i.e there exists some dmax with dmax ≥ dproper
+for all t. Hence, if
+t
+t
+proper
+we denote maxl dmax
+by
+T
+,
+we
+have
+d
+≥
+d
+for
+all
+t
+and
+therefore
+E
+≤
+E(dproper
+, Wtproper ).
+T
+T
+t
+t
+l
+proper
+proper
+But E(dt
+, Wt
+) = E(dt , Wt ) = Et , and therefore Et ≥ ET for all t.
+But (E)t converges to B from above. Therefore ET = B, therefore E(dT , WT ) = B and so E
+attains its greatest lower bound which means it attains a global minimum, as required.
+
+23
+
+Published as a conference paper at ICLR 2017
+
+7.2
+
+P ROOF OF PROPOSITION 1
+
+Proposition 1. If all nonlinearities in a nonparametric network model except possibly σL are selfsimilar, then the objective function 1 using a fan-in or fan-out regularizer with different regularization parameters λ1 , .., λL for each layer is equivalent to the same objective function using the single
+QL
+1
+regularization parameter λ = ( l=1 λl ) L for each layer, up to rescaling of weights.
+QL
+1
+Proof. Choose arbitrary positive λ1 , .., λL and let λ = ( l=1 λl ) L . We have:
+
+f (W, x)
+= σL .(σL−1 .(..σ2 .(σ1 .(xW1 )W2 )..)WL )
+= σL .(σL−1 .(..σ2 .(σ1 .((
+
+L
+Y
+λl
+l=1
+
+= σL .(σL−1 .(..σ2 .((
+
+L
+Y
+λl
+l=2
+
+λ
+
+λ
+
+)xW1 )W2 )..)WL )
+
+)σ1 .(
+
+λ1
+xW1 )W2 )..)WL )
+λ
+
+λL
+λ2
+λ1
+σL−1 .(..σ2 .( σ1 .( xW1 )W2 )..)WL )
+λ
+λ
+λ
+λ1
+λ2
+λL
+= σL .(σL−1 .(..σ2 .(σ1 .(x( W1 ))( W2 ))..)( WL ))
+λ
+λ
+λ
+
+= σL .(
+
+(72)
+(73)
+(74)
+
+(75)
+(76)
+(77)
+
+The line-by-line explanation is as follows:
+73 Insert the definition of f .
+74 Insert a multiplicative factor of value 1.
+75 Utilize the self-similarity of σ1 .
+76 Repeat the previous step L − 2 times.
+77 Utilize linearity.
+Further, assuming we use a fan-in regularizer, we have:
+
+L
+X
+l=1
+
+=
+
+λl
+
+dl
+X
+
+||[Wl (i, j)]i ||p
+
+(78)
+
+j=1
+
+dl
+L
+X
+λl X
+λ
+||[Wl (i, j)]i ||p
+λ j=1
+
+(79)
+
+dl
+L
+X
+X
+λl
+λ
+||[ Wl (i, j)]i ||p
+λ
+j=1
+
+(80)
+
+l=1
+
+=
+
+l=1
+
+The argument is equivalent for the fan-out regularizer.
+We find that the value of the objective is preserved when we replace all regularization parameters
+QL
+1
+with the same value λ = ( l=1 λl ) L and rescale Wl by λλl . This completes the proof.
+
+24
+
+Published as a conference paper at ICLR 2017
+
+7.3
+1
+
+2
+3
+4
+5
+
+6
+7
+8
+9
+10
+11
+12
+13
+
+14
+15
+16
+17
+
+18
+19
+20
+
+A DARAD -M
+
+input: αr : radial step size; αφ : angular step size; λ: regularization hyperparameter; βarith :
+arithmetic mixing rate; βquad : quadratic mixing rate; : numerical stabilizer; d0 : initial
+dimensions; W0 : initial weights; ν: unit addition rate; νfreq : unit addition frequency; T :
+number of iterations
+φmax = 0; cmax = 0; d = d0 ; W = W0 ;
+for l = 1 to L do
+set φ̃l (angular arithmetic running average) to the zero matrix of size d0l−1 × d0l ;
+set φ̄l (angular quadratic running average), cl (quadratic running average capacity) and al
+(arithmetic running average capacity) to zero vectors of size d0l ;
+end
+for t = 1 to T do
+set Dt to mini-batch used at iteration t;
+P
+1
+G = |D|
+∇W (x,y)∈Dt e(f (W, x), y);
+for l = L to 1 do
+alt = FALSE;
+for j = dl to 1 do
+decompose [Gl (i, j)]i into a component parallel to [Wl (i, j)]i (call it r) and a
+component orthogonal to [Wl (i, j)]i (call it φ) such that [Gl (i, j)]i = r + φ;
+φ̄l (j) = (1 − βquad )φ̄l (j) + βquad ||φ||22 ; cl (j) = (1 − βquad )cl (j) + βquad ;
+φmax = max(φmax , φ̄l (j)); cmax = max(cmax , cl (j)) ;
+[φ̃l (i, j)]iq= (1 − βarith )[φ̃l (i, j)]i + βarith φ; al (j) = (1 − βarith )al (j) + βarith ;
+φadj =
+
+φmax
+cmax
+
+r
+
+φ̄l (j)
++
+cl (j)
+
+[φ̃l (i,j)]i
+al (j) ;
+
+[Wl (i, j)]i = [Wl (i, j)]i − αr r;
+φ
+rotate [Wl (i, j)]i by angle αφ ||φadj ||2 in direction − ||φadjadj||2 ;
+rotate [φ̃l (i, j)]i by angle αφ ||φadj ||2 in direction
+t
+
+21
+22
+23
+
+24
+25
+26
+27
+28
+29
+
+30
+31
+32
+33
+34
+35
+36
+37
+38
+
+[Wl (i,j)]i
+||[Wl (i,j)]i ||2 ;
+
+|
+shrink([Wl (i, j)]i , αr λ |D
+|D| );
+if l < L and [Wl (i, j)]i is a zero vector then
+remove column j from Wl and φ̃l ; remove row j from Wl+1 and φ̃l+1 ; remove
+element j from φ̄l , cl and al ; decrement dl ;
+alt = TRUE;
+end
+end
+if t = 0 mod νfreq then
+ν 0 = ν;
+// if ν 6∈ Z, we can set e.g. ν 0 = Poisson(ν)
+add ν 0 randomly initialized columns to Wl ; add ν 0 zero columns to φ̃l ; add ν 0 zero rows
+to Wl+1 and φ̃l+1 ; add ν 0 zero elements to φ̄l , cl and al ; dl = dl + ν 0 ;
+end
+if alt then
+for j = 1 to dl+1 do
+(i,j)]i .[Wl+1 (i,j)]i
+[φ̃l+1 (i, j)]i = [φ̃l+1 (i, j)]i − [φ̃l+1||[W
+[Wl+1 (i, j)]i ;
+2
+l+1 (i,j)]i ||2
+end
+end
+end
+end
+return W;
+Algorithm 2: AdaRad-M with `2 fan-in regularizer and the unit addition / removal scheme used in
+this paper in its most instructive (bot not fastest) order of computation.
+
+25
+
+Published as a conference paper at ICLR 2017
+
+AdaRad-M is shown in algorithm 2. The main difference in comparison to AdaRad (see algorithm
+1) is that, for each fan-in, we maintain an exponential running average of the orthogonal component
+[φ̃l (i, j)]i (line 16) which we use to compute the angular shift (line 17). Hence, AdaRad-M, like
+Adam but unlike RMSprop and AdaRad, makes use of the principle of momentum.
+One issue of note is that the running average of the orthogonal component is not itself orthogonal
+to the current value of the fan-in. Hence, if some multiple of it was added to the fan-in in radialangular coordinates, it would change the length of the fan-in. This is undesirable as explained in
+section 3.3. Therefore, we take steps to the ensure that [φ̃l (i, j)]i is kept orthogonal to [Wl (i, j)]i .
+First, whenever we rotate [Wl (i, j)]i (line 19), we rotate [φ̃l (i, j)]i in the same manner (line 20).
+Second, whenever a unit in layer l and hence rows of Wl+1 and φ̃l+1 are deleted, we explicitly
+re-orthogonalize them (line 33).
+7.4
+
+E XPERIMENTAL DETAILS
+Life lengths of units in 2nd hidden layer
+Number of epochs present
+
+2000
+
+1500
+
+1000
+
+500
+
+0
+0
+
+200
+
+400
+
+600
+
+800
+
+1000
+
+Epoch
+
+Figure 4: Length of time individual units in the second hidden layer were present during training.
+The x axis depicts the epoch at which a given unit was added.
+In table 3, we show all hyperparameter values and related choices that were universal across all
+training runs and, unless specified otherwise, datasets.
+7.4.1
+
+P ROTOCOL FOR SECTION 4.1
+1. We conducted a grid search over λ ∈ {10−2 , 3 ∗ 10−3 , 10−3 , 3 ∗ 10−4 , 10−4 , 3 ∗
+10−5 , 10−5 , 3 ∗ 10−6 , 10−6 , 3 ∗ 10−7 , 10−7 , 3 ∗ 10−8 , 10−8 } and αφ
+∈
+{1, 3, 10, 30, 100, 300, 1.000, 3.000, 10.000, 30.000, 100.000} for nonparametric (NP)
+networks using AdaRad and a single random seed, for each of the mnist, rectangles-images
+and convex datasets. By examining validation classification error (VCE) and other metrics
+(but not test error), we chose the single value αφ = 30 for all NP experiments from now
+on. Further, we chose a few interesting values of λ for each dataset. From now on, all
+experiments were conducted independently for each dataset.
+2. We trained 10 NP networks for each chosen value of λ, with 10 different random seeds.
+Out of the 10 nets produced, we manually chose a single net as a typical representative by
+approximating the median of both network size, measured in number of weight parameters,
+and the test classification error (TCE) across the 10 runs. This representative, as well as the
+range of sizes and TCEs are shown in black in figure 2.
+3. For each chosen representative, we conducted a grid search for parametric (P) networks by fixing the size of the net to the size of the representative. The grid was over
+α ∈ {1, 3, 10, 30, 100, 300, 1.000, 3.000, 10.000, 30.000, 100.000}, over training algorithm (one of SGD, momentum, Nesterov momentum, RMSprop, Adam), and over whether
+batch normalization layers had free trainable mean and variance parameters. We introduced
+the last choice to more closely mimic CapNorm, which does not include free parameters.
+We set λ = 0 as `2 regularization is not compatible with regular (uncapped) batch normalization. In preliminary experiments, networks trained with `2 regularization and no batch
+normalization were not competitive. We used the same random seed as in step 1.
+26
+
+Published as a conference paper at ICLR 2017
+
+Hyperaparameter
+network architecture
+number of hidden layers (not poker)
+number of hidden layers (poker)
+αr : radial step size for AdaRad (not poker)
+αr : radial step size for AdaRad (poker)
+ν: unit addition rate for AdaRad
+νfreq : unit addition frequency for AdaRad (not poker)
+νfreq : unit addition frequency for AdaRad (poker)
+βarith : arithmetic mixing rate for AdaRad, momentum,
+Nesterov momentum and Adam
+βquad : quadratic mixing rate for AdaRad, RMSprop and
+Adam
+: numerical stabilizer for AdaRad, RMSprop and
+Adam
+number of starting units for NP networks
+W0 : initial weights (P and NP)
+
+Value
+see figure 1
+2
+4
+
+fan-in [Wl (i, j)]i for a newly added unit j
+
+Wl0 (i, j) ∼ N (0,
+
+batch size
+batch sampling
+
+1000
+every epoch, batches are sampled without replacement
+one random train-valid split for
+each random seed
+one single random train-validtest split for all training runs
+50.000 - 10.000
+10.000 - 2.000
+7.000 - 1.000
+800.000 - 125.010 - 100.000
+
+type of validation (not poker)
+type of validation (poker)
+train-valid split (MNIST)
+train-valid split (rectangles images)
+train-valid split (convex)
+train-valid-test split (poker)
+
+1
+50λ
+1
+5λ
+
+1
+once per epoch
+ten times per epoch
+0.1
+0.005
+10−8
+10 per hidden layer
+Wl0 (i, j) ∼ N (0, q 10
+
+)
+
+dl−1
+√1 )
+dl−1
+
+Table 3: Hyperparameters and related choices.
+4. We chose the 10 best performing settings from the grid search by VCE and produced 10
+reruns for each setting using the same 10 random seeds as in step 2. Then we chose the best
+setting out of the 10 by median VCE. We depict the median as well as the range of TCE for
+that best setting in red in figure 2. Note that the setting that had the lowest median TCE in
+all cases also had the lowest median VCE.
+5. We conducted a random search for P networks with 500 random settings. We chose α
+uniformly from the interval [1, 100.000] in log scale. Training algorithm and type of batch
+normalization were chosen uniformly at random from the same sets as in step 3. The size of
+each hidden layer was chosen uniformly at random between the size of the corresponding
+layer in the largest NP representative, and 5 times that size. We used the same random seed
+as in step 1.
+6. We chose the 10 best settings by VCE and reran them 10 times, using the same 10 random
+seeds as in step 2. By considering network size and median VCE, we chose 2 or 3 settings
+to display in blue in figure 2, including the setting with the lowest median VCE. In each
+case, the setting with the lowest median VCE also had the lowest median TCE.
+For NP networks, we trained until the VCE had not improved for 100 epochs. Then, we rewound
+the last 100 epochs and kept training without adding units. After no units had been eliminated and
+the VCE had not improved for 100 epochs, we set λ to zero, rewound the last 100 epochs and kept
+training. After the VCE had not improved for 100 epochs, we rewound again and divided the angular
+step size by 3. After the VCE had not improved for 5 epochs, we rewound and divided the angular
+step size by 3 again. We kept doing this until the angular step size was too small to change the VCE.
+For P networks, we trained until the VCE had not improved for 100 epochs, then rewound and
+divided the step size by 3. We kept training until the VCE had not improved for 5 epochs, then
+rewound again and divided the step size by 3. We kept doing this until the step size was too small to
+change the VCE.
+27
+
+Published as a conference paper at ICLR 2017
+
+7.4.2
+
+P ROTOCOL FOR SECTION 4.3
+1. We conducted a grid search over λ ∈ {10−3 , 3 ∗ 10−4 , 10−4 , 3 ∗ 10−5 , 10−5 , 3 ∗
+10−6 , 10−6 , 3 ∗ 10−7 , 10−7 } and αφ ∈ {1, 10, 100, 1.000, 10.000} for NP networks using AdaRad, a single random seed and the poker data set. By examining VCE and other
+metrics (but not test error), we chose the single value αφ = 10. For this value, we chose
+several values of λ. The size and TCE of the nets trained using those values of λ are shown
+in table 2.
+2. For each trained NP network shown in table 2, we trained P networks of
+the same size using RMSprop and each of the following step sizes: α ∈
+{1, 3, 10, 30, 100, 300, 1.000, 3.000, 10.000}. For each network size, the TCE of the network with the lowest VCE is shown in table 2. For all network sizes, the network with the
+lowest TCE also had the lowest VCE.
+
+For NP networks, we trained until the VCE had not improved for 10 epochs. Then, we rewound
+the last 10 epochs and kept training without adding units. After no units had been eliminated and
+the VCE had not improved for 10 epochs, we set λ to zero, rewound the last 10 epochs and kept
+training. After the VCE had not improved for 10 epochs, we rewound again and divided the angular
+step size by 3. After the VCE had not improved for 0.5 epochs, we rewound and divided the angular
+step size by 3 again. We kept doing this until the angular step size was too small to change the VCE.
+For P networks, we trained until the VCE had not improved for 10 epochs, then rewound and divided
+the step size by 3. We kept training until the VCE had not improved for 0.5 epochs, then rewound
+again and divided the step size by 3. We kept doing this until the step size was too small to change
+the VCE.
+
+28
+
+
